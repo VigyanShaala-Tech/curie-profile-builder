@@ -1,0 +1,68 @@
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>VS Quick Self-Reflection Tool</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet">
+    <script>
+      tailwind.config = {
+        theme: {
+          extend: {
+            colors: {
+              vs: {
+                orange: '#f58434',
+                yellow: '#ffcd29',
+                blue: '#2c4869'
+              }
+            }
+          }
+        }
+      }
+    </script>
+    <style>
+        body { font-family: 'Inter', sans-serif; }
+        .glass { background: rgba(255, 255, 255, 0.7); backdrop-filter: blur(10px); }
+        .bg-gradient-mesh {
+            background-color: #2c4869;
+            background-image: 
+                radial-gradient(at 0% 0%, #f58434 0, transparent 50%), 
+                radial-gradient(at 100% 0%, #ffcd29 0, transparent 50%);
+        }
+
+        @media print {
+            body { background: white !important; }
+            #root > div > div, 
+            header, 
+            nav, 
+            .no-print { display: none !important; }
+            #root > div { padding-bottom: 0 !important; }
+            main { max-width: 100% !important; margin: 0 !important; padding: 0 !important; }
+            .print-only-container { display: block !important; }
+            .shadow-2xl, .shadow-xl, .shadow-md { shadow: none !important; box-shadow: none !important; border: 1px solid #e2e8f0 !important; }
+            button { display: none !important; }
+            .bg-slate-50 { background-color: white !important; }
+            .bg-indigo-50, .bg-emerald-50, .bg-pink-50, .bg-blue-50 { background-color: transparent !important; border: 1px solid #f1f5f9 !important; }
+            .text-indigo-600, .text-emerald-600, .text-blue-600, .text-pink-600 { color: black !important; border-bottom: 1px solid #e2e8f0 !important; }
+        }
+    </style>
+<script type="importmap">
+{
+  "imports": {
+    "react": "https://esm.sh/react@^19.2.4",
+    "react-dom/": "https://esm.sh/react-dom@^19.2.4/",
+    "react/": "https://esm.sh/react@^19.2.4/"
+  }
+}
+</script>
+<link rel="stylesheet" href="/index.css">
+</head>
+<body class="bg-[#fcfcfc] text-[#2c4869] antialiased overflow-x-hidden">
+    <div id="root"></div>
+<script type="module" src="/index.tsx"></script>
+</body>
+</html>

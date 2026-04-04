@@ -1,18 +1,17 @@
 
-import React, { useState } from 'react';
-import { Profile, MilestoneDetail } from '../types';
-import { 
-  COMPETITIVE_EXAMS, 
-  EXAM_STATUS_OPTIONS, 
-  CERTIFICATION_OPTIONS, 
-  CERTIFICATION_STATUS_OPTIONS 
-} from '../constants';
+import React, { useEffect, useRef, useState } from 'react';
+import { AnimatePresence } from 'motion/react';
+import { Profile } from '../types';
+import { TypeformSlide, TypeformNav, typeformInputClass, typeformLabelClass } from './TypeformSlide';
 
 interface Props {
   profile: Profile;
   updateProfile: (updates: Partial<Profile>) => void;
   readOnly?: boolean;
   validationErrors?: Record<string, string>;
+  typeform?: boolean;
+  onCompleteSection?: () => void;
+  onBackFromFirst?: () => void;
 }
 
 const InputRow = ({ value, onChange, onAdd, placeholder, disabled }: any) => (
@@ -87,7 +86,7 @@ const TagCloud = ({ items, field, color = "vs-orange", onRemove, readOnly }: { i
   );
 };
 
-const SkillSection = ({ title, description, examples, value, onChange, onAdd, placeholder, items, field, color, icon, onRemove, readOnly, errorMessage, required }: any) => (
+const SkillSection = ({ title, description, examples, value, onChange, onAdd, placeholder, items, field, color, icon, onRemove, readOnly, errorMessage }: any) => (
   <div className={`p-6 bg-white rounded-3xl border ${errorMessage ? 'border-red-500 ring-2 ring-red-100' : 'border-slate-100'} shadow-sm transition-all duration-300`}>
     <section className="animate-in fade-in slide-in-from-bottom-2 duration-300">
       <div className="flex items-center gap-2 mb-4">
@@ -97,13 +96,12 @@ const SkillSection = ({ title, description, examples, value, onChange, onAdd, pl
         <div>
           <h3 className={`text-sm font-black uppercase tracking-wider ${color === 'vs-orange' ? 'text-[#f58434]' : color === 'vs-yellow' ? 'text-[#b58e00]' : 'text-[#2c4869]'}`}>
             {title}
-            {required && <span className="text-red-500 ml-1">*</span>}
           </h3>
         </div>
       </div>
       <div className="mb-4">
         <p className="text-xs font-bold text-[#2c4869] mb-1">{description}</p>
-        <p className="text-[10px] text-slate-400 italic">Examples: {examples}</p>
+        {examples ? null : null}
         {errorMessage && <p className="text-red-500 text-[10px] font-bold mt-1">{errorMessage}</p>}
       </div>
       <InputRow value={value} onChange={onChange} onAdd={onAdd} placeholder={placeholder} disabled={readOnly} />
@@ -112,7 +110,71 @@ const SkillSection = ({ title, description, examples, value, onChange, onAdd, pl
   </div>
 );
 
-const ExpertiseForm: React.FC<Props> = ({ profile, updateProfile, readOnly, validationErrors = {} as Record<string, string> }) => {
+const TF_STEPS = 5;
+const MAX_ENTRIES_PER_EXPERTISE = 10;
+
+const stepConfig = [
+  {
+    title: 'Subject knowledge',
+    description: 'What concepts or techniques are you learning?',
+    examples: '',
+    field: 'subjectSkills' as const,
+    inputKey: 'subject' as const,
+    placeholder: 'Linear Algebra, Plant Science, Mathematics',
+    color: 'vs-orange' as const,
+    err: 'Subject Expertise',
+  },
+  {
+    title: 'Technical tools & IT',
+    description: 'Tools, software, or languages you use.',
+    examples: '',
+    field: 'toolSkills' as const,
+    inputKey: 'tool' as const,
+    placeholder: 'Python, Git, SolidWorks, Excel…',
+    color: 'vs-orange' as const,
+    err: 'Technical Tools',
+  },
+  {
+    title: 'AI & data skills',
+    description: '',
+    examples: '',
+    field: 'aiSkills' as const,
+    inputKey: 'ai' as const,
+    placeholder: 'ML, data analysis, visualization, and related skills',
+    color: 'vs-orange' as const,
+    err: 'AI & Data Skills',
+  },
+  {
+    title: 'Professional skills',
+    description: 'Collaboration, communication, and how you get things done.',
+    examples: '',
+    field: 'professionalSkills' as const,
+    inputKey: 'professional' as const,
+    placeholder: 'Teamwork, Time Management, Public Speaking',
+    color: 'vs-yellow' as const,
+    err: 'Professional Skills',
+  },
+  {
+    title: 'Academic interests',
+    description: 'STEM topics that fascinate you.',
+    examples: '',
+    field: 'interests' as const,
+    inputKey: 'interest' as const,
+    placeholder: 'Software Developer/Engineer, Biomedical Researcher, Actuary/Financial Analyst',
+    color: 'vs-blue' as const,
+    err: 'Academic Interests',
+  },
+];
+
+const ExpertiseForm: React.FC<Props> = ({
+  profile,
+  updateProfile,
+  readOnly,
+  validationErrors = {} as Record<string, string>,
+  typeform,
+  onCompleteSection,
+  onBackFromFirst,
+}) => {
   const getError = (field: string) => validationErrors[field];
 
   const [inputs, setInputs] = useState({
@@ -122,11 +184,26 @@ const ExpertiseForm: React.FC<Props> = ({ profile, updateProfile, readOnly, vali
     professional: '',
     interest: ''
   });
+  const [step, setStep] = useState(0);
+  const [attemptedNext, setAttemptedNext] = useState(false);
+  const [limitMessage, setLimitMessage] = useState<string | null>(null);
+  const inputRef = useRef<HTMLInputElement>(null);
+
+  useEffect(() => {
+    if (!typeform || readOnly) return;
+    const t = requestAnimationFrame(() => inputRef.current?.focus());
+    return () => cancelAnimationFrame(t);
+  }, [step, typeform, readOnly]);
 
   const addToList = (field: keyof Profile, value: string, inputKey: keyof typeof inputs) => {
     if (readOnly) return;
     const trimmed = value.trim();
     const currentList = (profile[field] as string[]) || [];
+    if (currentList.length >= MAX_ENTRIES_PER_EXPERTISE) {
+      setLimitMessage('You can add up to 10 entries only.');
+      setTimeout(() => setLimitMessage(null), 2500);
+      return;
+    }
     if (trimmed && !currentList.includes(trimmed)) {
       updateProfile({ [field]: [...currentList, trimmed] });
       setInputs(prev => ({ ...prev, [inputKey]: '' }));
@@ -139,21 +216,140 @@ const ExpertiseForm: React.FC<Props> = ({ profile, updateProfile, readOnly, vali
     updateProfile({ [field]: currentList.filter(x => x !== value) });
   };
 
+  const listLen = (field: keyof Profile) => ((profile[field] as string[]) || []).length;
+
+  const getFilledExpertiseFieldCount = (snapshot: Profile) => {
+    const flags = [
+      snapshot.subjectSkills.length > 0,
+      snapshot.toolSkills.length > 0,
+      snapshot.aiSkills.length > 0,
+      snapshot.professionalSkills.length > 0,
+      snapshot.interests.length > 0,
+    ];
+    return flags.filter(Boolean).length;
+  };
+
+  /** Merge optional typed chip, then advance. Final step requires at least two filled fields overall. */
+  const finalizeAndGoNext = () => {
+    const cfg = stepConfig[step];
+    const list = ((profile[cfg.field] as string[]) || []);
+    const raw = inputs[cfg.inputKey];
+    const t = raw.trim();
+    let effectiveLen = list.length;
+    if (t && list.length < MAX_ENTRIES_PER_EXPERTISE && !list.includes(t)) {
+      updateProfile({ [cfg.field]: [...list, t] });
+      setInputs((p) => ({ ...p, [cfg.inputKey]: '' }));
+      effectiveLen = list.length + 1;
+    }
+    const nextProfile = {
+      ...profile,
+      ...(t && list.length < MAX_ENTRIES_PER_EXPERTISE && !list.includes(t)
+        ? { [cfg.field]: [...list, t] }
+        : {}),
+    } as Profile;
+
+    setAttemptedNext(true);
+    if (effectiveLen > MAX_ENTRIES_PER_EXPERTISE) {
+        setLimitMessage('You can add up to 10 entries only.');
+        setTimeout(() => setLimitMessage(null), 2500);
+      return;
+    }
+
+    if (step === TF_STEPS - 1) {
+      const filledCount = getFilledExpertiseFieldCount(nextProfile);
+      if (filledCount < 2) {
+        setLimitMessage('Fill at least any two questions out of five to proceed to the next section.');
+        return;
+      }
+    }
+    setAttemptedNext(false);
+    if (step < TF_STEPS - 1) setStep(step + 1);
+    else onCompleteSection?.();
+  };
+
+  const goBackTf = () => {
+    setAttemptedNext(false);
+    if (step > 0) setStep(step - 1);
+    else onBackFromFirst?.();
+  };
+
+  if (typeform && !readOnly) {
+    const cfg = stepConfig[step];
+    const items = (profile[cfg.field] as string[]) || [];
+    return (
+      <div className="min-h-[50vh] flex flex-col justify-center px-1 pb-8">
+        <p className="text-[11px] font-bold uppercase tracking-[0.2em] text-slate-400 mb-6">
+          {step + 1} / {TF_STEPS}
+        </p>
+        <AnimatePresence mode="wait">
+          <TypeformSlide slideKey={step}>
+            <label className={typeformLabelClass}>
+              {cfg.title}
+            </label>
+            <p className="text-sm text-slate-500 mb-2">{cfg.description}</p>
+            <div className="mb-6" />
+            {getError(cfg.err) && <p className="text-red-500 text-sm mb-2">{getError(cfg.err)}</p>}
+            {limitMessage && <p className="text-red-500 text-sm mb-2">{limitMessage}</p>}
+            <div className="flex flex-col sm:flex-row gap-2 sm:gap-3 mb-6">
+              <input
+                ref={inputRef}
+                type="text"
+                value={inputs[cfg.inputKey]}
+                onChange={(e) => setInputs(p => ({ ...p, [cfg.inputKey]: e.target.value }))}
+                onKeyDown={(e) => {
+                  if (e.key !== 'Enter') return;
+                  e.preventDefault();
+                  const list = ((profile[cfg.field] as string[]) || []);
+                  const t = inputs[cfg.inputKey].trim();
+                  if (list.length >= 1 || step === TF_STEPS - 1) {
+                    finalizeAndGoNext();
+                    return;
+                  }
+                  if (t) {
+                    addToList(cfg.field, inputs[cfg.inputKey], cfg.inputKey);
+                    return;
+                  }
+                  setAttemptedNext(true);
+                }}
+                placeholder={cfg.placeholder}
+                className={`${typeformInputClass(false)} flex-1`}
+              />
+              <button
+                type="button"
+                onClick={() => addToList(cfg.field, inputs[cfg.inputKey], cfg.inputKey)}
+                className="px-6 py-3 rounded-full bg-[#f58434] text-white text-sm font-bold shrink-0"
+              >
+                Add
+              </button>
+            </div>
+            <TagCloud items={items} field={cfg.field} color={cfg.color} onRemove={removeFromList} readOnly={false} />
+            <TypeformNav
+              showBack={step > 0 || !!onBackFromFirst}
+              onBack={goBackTf}
+              onNext={finalizeAndGoNext}
+              nextLabel={step === TF_STEPS - 1 ? 'Continue' : 'Next'}
+            />
+          </TypeformSlide>
+        </AnimatePresence>
+      </div>
+    );
+  }
+
   return (
     <div className={`space-y-8 animate-in slide-in-from-right-4 duration-500 pb-20 ${readOnly ? 'opacity-60 pointer-events-none' : ''}`}>
       <div className={`space-y-6 transition-all`}>
+        {limitMessage && <p className="text-red-600 font-bold text-sm px-4">{limitMessage}</p>}
         {!!getError('Subject Expertise') || !!getError('Technical Tools') || !!getError('AI & Data Skills') || !!getError('Professional Skills') || !!getError('Academic Interests') ? (
           <p className="text-red-600 font-bold text-sm px-4">Please add at least one item to any of the following expertise areas:</p>
         ) : null}
         {/* 1. Subject Knowledge */}
         <SkillSection 
           title="1. Subject Knowledge"
-          description="What scientific or engineering concepts are you becoming comfortable with? (Include everything from basic lab techniques to advanced analysis)."
-          examples="Circuit Design, Thermodynamics Analysis, Molecular Biology Techniques, Structural Analysis, Control Systems, Embedded Systems, Materials Characterization, Signal Processing, etc."
+          description="What concepts or techniques are you learning?"
           value={inputs.subject}
           onChange={(v: string) => setInputs(p => ({ ...p, subject: v }))}
           onAdd={() => addToList('subjectSkills', inputs.subject, 'subject')}
-          placeholder="Add a subject skill"
+          placeholder="Linear Algebra, Plant Science, Mathematics"
           items={profile.subjectSkills}
           field="subjectSkills"
           color="vs-orange"
@@ -166,12 +362,12 @@ const ExpertiseForm: React.FC<Props> = ({ profile, updateProfile, readOnly, vali
         {/* 2. Technical Tools & IT Skills */}
         <SkillSection 
           title="2. Technical Tools & IT Skills"
-          description="What software, programming languages, or technical tools have you worked with?"
-          examples="Python, MATLAB, SolidWorks, AutoCAD, Arduino, Git / GitHub, Linux, Excel / Advanced Spreadsheets, Cloud Platforms (AWS, GCP)"
+          description="What tools, software, or programming languages have you used?"
+          examples=""
           value={inputs.tool}
           onChange={(v: string) => setInputs(p => ({ ...p, tool: v }))}
           onAdd={() => addToList('toolSkills', inputs.tool, 'tool')}
-          placeholder="Add a tool or IT skill"
+          placeholder="Python, Git, SolidWorks, Excel…"
           items={profile.toolSkills}
           field="toolSkills"
           color="vs-orange"
@@ -184,12 +380,12 @@ const ExpertiseForm: React.FC<Props> = ({ profile, updateProfile, readOnly, vali
         {/* 3. AI & Data Skills */}
         <SkillSection 
           title="3. AI & Data Skills"
-          description="Have you explored artificial intelligence, machine learning, or data-related tools and methods?"
-          examples="Machine Learning, Deep Learning, Prompt Engineering, Data Analysis, Computer Vision, Natural Language Processing, TensorFlow / PyTorch, Data Visualization"
+          description=""
+          examples=""
           value={inputs.ai}
           onChange={(v: string) => setInputs(p => ({ ...p, ai: v }))}
           onAdd={() => addToList('aiSkills', inputs.ai, 'ai')}
-          placeholder="Add an AI or data skill"
+          placeholder="ML, data analysis, visualization, and related skills"
           items={profile.aiSkills}
           field="aiSkills"
           color="vs-orange"
@@ -202,12 +398,12 @@ const ExpertiseForm: React.FC<Props> = ({ profile, updateProfile, readOnly, vali
         {/* 4. Professional & Transferable Skills */}
         <SkillSection 
           title="4. Professional & Transferable Skills"
-          description="These are skills that help you collaborate, communicate ideas, and work effectively in teams."
-          examples="Scientific Communication, Team Collaboration, Project Management, Leadership, Problem Solving, Critical Thinking, Time Management, Public Speaking"
+          description="What skills help you work with others or manage tasks?"
+          examples=""
           value={inputs.professional}
           onChange={(v: string) => setInputs(p => ({ ...p, professional: v }))}
           onAdd={() => addToList('professionalSkills', inputs.professional, 'professional')}
-          placeholder="Add a professional skill"
+          placeholder="Teamwork, Time Management, Public Speaking"
           items={profile.professionalSkills}
           field="professionalSkills"
           color="vs-yellow"
@@ -220,12 +416,11 @@ const ExpertiseForm: React.FC<Props> = ({ profile, updateProfile, readOnly, vali
         {/* 5. Academic Interests */}
         <SkillSection 
           title="5. Academic Interests"
-          description="What specific topics or areas in STEM fascinate you the most?"
-          examples="Quantum Mechanics, Astrophysics, Robotics, Genetics, Sustainable Energy, Number Theory, etc."
+          description="What topics in STEM fascinate you the most?"
           value={inputs.interest}
           onChange={(v: string) => setInputs(p => ({ ...p, interest: v }))}
           onAdd={() => addToList('interests', inputs.interest, 'interest')}
-          placeholder="Add an interest"
+          placeholder="Software Developer/Engineer, Biomedical Researcher, Actuary/Financial Analyst"
           items={profile.interests}
           field="interests"
           color="vs-blue"

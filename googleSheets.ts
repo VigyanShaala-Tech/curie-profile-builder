@@ -2,7 +2,7 @@ import fs from 'fs';
 import path from 'path';
 import { google } from 'googleapis';
 import type { ChatPreferences, Profile } from './types';
-import { SHEET_COLUMN_HEADERS, profileToDataframeRow } from './profileSheetExport.ts';
+import { SHEET_COLUMN_HEADERS, profileToSheetsRowObject } from './profileSheetExport.ts';
 
 function loadServiceAccountJsonRaw(): string {
   const filePath = process.env.GOOGLE_SHEETS_CREDENTIALS_PATH?.trim();
@@ -82,10 +82,10 @@ export async function appendProfileToGoogleSheet(
     throw new Error('Missing GOOGLE_SHEETS_SPREADSHEET_ID');
   }
 
-  const tabName = (process.env.GOOGLE_SHEETS_TAB_NAME || 'Sheet1').trim() || 'Sheet1';
+  // Always write into Sheet3 (never create/append to other tabs).
+  const tabName = 'Sheet3';
   const exportedAt = new Date().toISOString();
-  const row = profileToDataframeRow(profile, chatPreferences, exportedAt);
-  const headers = [...SHEET_COLUMN_HEADERS];
+  const rowMap = profileToSheetsRowObject(profile, chatPreferences, exportedAt);
 
   const sheets = getSheetsClient();
   const headerRange = `${tabName}!1:1`;
@@ -105,6 +105,7 @@ export async function appendProfileToGoogleSheet(
   }
 
   if (firstRowEmpty) {
+    const headers = [...SHEET_COLUMN_HEADERS];
     await sheets.spreadsheets.values.update({
       spreadsheetId,
       range: `${tabName}!A1`,
@@ -112,16 +113,27 @@ export async function appendProfileToGoogleSheet(
       requestBody: { values: [headers] },
     });
     existingHeaders = headers;
+  } else {
+    // Prevent misaligned writes: only proceed when Sheet3 has the expected columns.
+    const requiredHeaders = [...SHEET_COLUMN_HEADERS];
+    const missing = requiredHeaders.filter((h) => !existingHeaders.includes(h));
+    if (missing.length) {
+      throw new Error(`[sheets] Sheet3 header missing required columns: ${missing.join(', ')}`);
+    }
   }
 
-  const whatsappIndex = existingHeaders.indexOf('whatsappNumber');
-  if (whatsappIndex === -1) {
-    throw new Error("Could not find 'whatsappNumber' column in header row.");
+  const keyIndex = existingHeaders.indexOf('key');
+  if (keyIndex === -1) {
+    throw new Error('[sheets] Sheet3 header must include a `key` column for upsert.');
   }
 
-  const normalizedPhone = (profile.whatsappNumber || '').trim();
-  if (!normalizedPhone) {
-    throw new Error('whatsappNumber is required for upsert.');
+  const normalizedKey = (profile.whatsappNumber || '').trim();
+  if (!normalizedKey) throw new Error('whatsappNumber is required for upsert.');
+  const normalizedPhoneKey = normalizePhoneKey(normalizedKey);
+
+  function normalizePhoneKey(value: string): string {
+    // Matching only: tolerate formatting differences like "+91 ..." vs "91 ...".
+    return (value || '').replace(/\D/g, '');
   }
 
   const dataRange = `${tabName}!A2:${columnNumberToLetter(existingHeaders.length)}10000`;
@@ -131,7 +143,54 @@ export async function appendProfileToGoogleSheet(
   });
   const dataRows = dataResp.data.values ?? [];
 
-  const existingRowIndex = dataRows.findIndex((r) => String(r[whatsappIndex] ?? '').trim() === normalizedPhone);
+  const existingRowIndex = (() => {
+    return (
+      dataRows.findIndex(
+        (r) => normalizePhoneKey(String(r[keyIndex] ?? '').trim()) === normalizedPhoneKey
+      ) ?? -1
+    );
+  })();
+
+  const row = existingHeaders.map((h) => normalizeRowValue(rowMap[h] ?? ''));
+
+  function normalizeRowValue(v: string): string {
+    return v === undefined || v === null ? '' : String(v);
+  }
+
+  const formattedData: Record<string, string> = {
+    key: rowMap.key ?? '',
+    first_name: rowMap.first_name ?? '',
+    last_name: rowMap.last_name ?? '',
+    identity: rowMap.identity ?? '',
+    academics: rowMap.academics ?? '',
+    skills_interests: rowMap.skills_interests ?? '',
+    milestones: rowMap.milestones ?? '',
+    reflections: rowMap.reflections ?? '',
+    chat_settings: rowMap.chat_settings ?? '',
+  };
+
+  const jsonFields = ['identity', 'academics', 'skills_interests', 'milestones', 'reflections', 'chat_settings'] as const;
+
+  function validateJsonFields(payload: Record<string, string>) {
+    for (const field of jsonFields) {
+      const value = payload[field];
+      if (typeof value !== 'string') {
+        throw new Error(`[sheets] ${field} must be a stringified JSON value`);
+      }
+      if (value.includes('[object Object]')) {
+        throw new Error(`[sheets] ${field} contains "[object Object]"`);
+      }
+      // Must be parseable JSON.
+      JSON.parse(value);
+    }
+
+    // Extra guard: no accidental objects converted to strings.
+    for (const [k, v] of Object.entries(payload)) {
+      if (typeof v === 'string' && v.includes('[object Object]')) {
+        throw new Error(`[sheets] ${k} contains "[object Object]"`);
+      }
+    }
+  }
 
   if (existingRowIndex >= 0) {
     const rowNumber = existingRowIndex + 2;
@@ -139,17 +198,22 @@ export async function appendProfileToGoogleSheet(
     await sheets.spreadsheets.values.update({
       spreadsheetId,
       range: updateRange,
-      valueInputOption: 'USER_ENTERED',
+      valueInputOption: 'RAW',
       requestBody: { values: [row] },
     });
+    console.log('Final Payload:', formattedData);
+    validateJsonFields(formattedData);
     return;
   }
 
   await sheets.spreadsheets.values.append({
     spreadsheetId,
     range: `${tabName}!A:A`,
-    valueInputOption: 'USER_ENTERED',
+    valueInputOption: 'RAW',
     insertDataOption: 'INSERT_ROWS',
     requestBody: { values: [row] },
   });
+
+  console.log('Final Payload:', formattedData);
+  validateJsonFields(formattedData);
 }

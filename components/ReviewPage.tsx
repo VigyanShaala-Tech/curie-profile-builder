@@ -15,7 +15,7 @@ interface Props {
   updateProfile: (updates: Partial<Profile>) => void;
 }
 
-const VIGYAN_SHAALA_LOGO = "https://vigyanshaala.com/wp-content/uploads/2021/01/VigyanShaala-Logo-Horizontal-1.png";
+const VIGYAN_SHAALA_LOGO = '/log.png';
 const STORAGE_KEY = 'vs_reflection_profile';
 
 const ReviewPage: React.FC<Props> = ({ profile, completeness, setCurrentSection, chatPreferences, setChatPreferences, updateProfile }) => {
@@ -29,6 +29,7 @@ const ReviewPage: React.FC<Props> = ({ profile, completeness, setCurrentSection,
   const [syncError, setSyncError] = useState<string | null>(null);
   const [curieSuccess, setCurieSuccess] = useState(profile.lastSyncedAt && !isOutOfSync ? true : false);
   const [showPreferencePrompt, setShowPreferencePrompt] = useState(false);
+  const [showSyncSuccessModal, setShowSyncSuccessModal] = useState(false);
   const [pendingSection, setPendingSection] = useState<Section | null>(null);
 
   // Update success state if sync status changes
@@ -149,7 +150,7 @@ const ReviewPage: React.FC<Props> = ({ profile, completeness, setCurrentSection,
     return hasIdentity && hasExpertise && hasMilestones && hasValidProjects && hasValidExams && hasValidCerts;
   }, [profile]);
 
-  const isLocked = completeness < 70 || !hasMandatoryFields;
+  const isLocked = !hasMandatoryFields;
   const isPdfLocked = isLocked || !profile.lastSyncedAt;
 
   const nextSectionToComplete = useMemo(() => {
@@ -197,6 +198,7 @@ const ReviewPage: React.FC<Props> = ({ profile, completeness, setCurrentSection,
       updateProfile({ lastSyncedAt: now });
       localStorage.setItem(STORAGE_KEY, JSON.stringify({ ...profile, lastSyncedAt: now }));
       setCurieSuccess(true);
+      setShowSyncSuccessModal(true);
     } catch (e) {
       const message = e instanceof Error ? e.message : 'Sync failed';
       setSyncError(message);
@@ -372,8 +374,8 @@ const ReviewPage: React.FC<Props> = ({ profile, completeness, setCurrentSection,
                   </svg>
                 </div>
                 <div className="flex-1">
-                  <h4 className="text-lg font-black text-[#2c4869] uppercase leading-tight">Profile Locked ({completeness}%)</h4>
-                  <p className="text-sm font-medium text-[#2c4869]/70 mt-1 mb-4">You need at least 70% completion to Sync or Download your profile.</p>
+                  <h4 className="text-lg font-black text-[#2c4869] uppercase leading-tight">Complete Level 1 to Continue</h4>
+                  <p className="text-sm font-medium text-[#2c4869]/70 mt-1 mb-4">Sync unlocks once all mandatory Level 1 fields are complete.</p>
                   
                   <div className="space-y-3">
                     <p className="text-[10px] font-black text-[#2c4869]/40 uppercase tracking-widest">Missing Mandatory Fields:</p>
@@ -459,7 +461,7 @@ const ReviewPage: React.FC<Props> = ({ profile, completeness, setCurrentSection,
                   <span className="text-xl uppercase tracking-tight">
                     {profile.lastSyncedAt ? 'Sync Changes' : 'Sync Profile'}
                   </span>
-                  {isLocked && <span className="text-[10px] opacity-60">Unlock at 70% completion</span>}
+                  {isLocked && <span className="text-[10px] opacity-60">Complete Level 1 mandatory fields to unlock</span>}
                 </>
               )}
             </button>
@@ -604,6 +606,30 @@ const ReviewPage: React.FC<Props> = ({ profile, completeness, setCurrentSection,
                   Cancel
                 </button>
               </div>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
+
+      <AnimatePresence>
+        {showSyncSuccessModal && (
+          <div className="fixed inset-0 z-[110] flex items-center justify-center p-4 bg-[#2c4869]/60 backdrop-blur-sm">
+            <motion.div
+              initial={{ opacity: 0, scale: 0.92, y: 16 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              exit={{ opacity: 0, scale: 0.92, y: 16 }}
+              className="bg-white rounded-[32px] p-8 max-w-lg w-full shadow-2xl border border-slate-100"
+            >
+              <h3 className="text-2xl font-black text-[#2c4869] tracking-tight mb-4">Profile Synced Successfully 🎉</h3>
+              <p className="text-sm font-medium text-[#2c4869]/80 leading-relaxed mb-8">
+                Your progress has been saved and updated.
+              </p>
+              <button
+                onClick={() => setShowSyncSuccessModal(false)}
+                className="w-full py-4 rounded-2xl bg-[#2c4869] text-white font-black uppercase tracking-widest text-xs hover:bg-[#2c4869]/90 transition-all active:scale-[0.98]"
+              >
+                Continue
+              </button>
             </motion.div>
           </div>
         )}

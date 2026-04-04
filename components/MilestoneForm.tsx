@@ -1,6 +1,8 @@
 
-import React, { useState, useRef, useEffect } from 'react';
-import { Pencil, Plus, FolderGit2, Award, BookOpen } from 'lucide-react';
+import React, { useState, useRef, useEffect, useMemo, useCallback } from 'react';
+import { AnimatePresence } from 'motion/react';
+import { Pencil, FolderGit2, Award, BookOpen } from 'lucide-react';
+import { TypeformSlide, TypeformNav, TypeformToggleGroup, typeformInputClass, typeformLabelClass } from './TypeformSlide';
 import { Profile, MilestoneDetail, ProjectDetail } from '../types';
 import { 
   EXAM_STATUS_OPTIONS,
@@ -13,6 +15,11 @@ interface Props {
   updateProfile: (updates: Partial<Profile>) => void;
   readOnly?: boolean;
   validationErrors?: Record<string, string>;
+  typeform?: boolean;
+  /** When user opened this section via "Edit" on a completed summary — toggles require explicit Next. */
+  typeformResumeEdit?: boolean;
+  onCompleteSection?: () => void;
+  onBackFromFirst?: () => void;
 }
 
 const AutoTextarea = (props: React.TextareaHTMLAttributes<HTMLTextAreaElement>) => {
@@ -87,7 +94,40 @@ interface UnifiedEntry {
   data: ProjectDetail | MilestoneDetail;
 }
 
-const MilestoneForm: React.FC<Props> = ({ profile, updateProfile, readOnly, validationErrors = {} as Record<string, string> }) => {
+type DraftPointer = { type: EntryType; index: number } | null;
+
+const findFirstUnsaved = (profile: Profile): DraftPointer => {
+  const pi = profile.projects.findIndex(p => p.isSaved !== true);
+  if (pi >= 0) return { type: 'project', index: pi };
+  const ci = profile.certifications.findIndex(c => c.isSaved !== true);
+  if (ci >= 0) return { type: 'certification', index: ci };
+  const ei = profile.exams.findIndex(e => e.isSaved !== true);
+  if (ei >= 0) return { type: 'exam', index: ei };
+  return null;
+};
+
+const milestoneMandatoryOk = (profile: Profile) => {
+  const hasAny =
+    profile.projects.length > 0 || profile.exams.length > 0 || profile.certifications.length > 0;
+  if (!hasAny) return false;
+  const projectsOk = profile.projects.every(
+    p => !p.name.trim() || (p.name.trim() && !!p.status)
+  );
+  const examsOk = profile.exams.every(e => !e.name.trim() || (e.name.trim() && !!e.status));
+  const certsOk = profile.certifications.every(c => !c.name.trim() || (c.name.trim() && !!c.status));
+  return projectsOk && examsOk && certsOk;
+};
+
+const MilestoneForm: React.FC<Props> = ({
+  profile,
+  updateProfile,
+  readOnly,
+  validationErrors = {} as Record<string, string>,
+  typeform,
+  typeformResumeEdit = false,
+  onCompleteSection,
+  onBackFromFirst,
+}) => {
   const getError = (field: string) => validationErrors[field];
 
   const updateProject = (index: number, updates: Partial<ProjectDetail>) => {
@@ -99,6 +139,7 @@ const MilestoneForm: React.FC<Props> = ({ profile, updateProfile, readOnly, vali
 
   const addProject = () => {
     if (readOnly) return;
+    setMilestoneStatusShowNext(false);
     const next = profile.projects.map(p => ({ ...p, isSaved: true }));
     updateProfile({ projects: [...next, { name: '', status: '', details: '', isSaved: false }] });
   };
@@ -119,6 +160,7 @@ const MilestoneForm: React.FC<Props> = ({ profile, updateProfile, readOnly, vali
 
   const addExam = () => {
     if (readOnly) return;
+    setMilestoneStatusShowNext(false);
     const next = profile.exams.map(e => ({ ...e, isSaved: true }));
     updateProfile({ exams: [...next, { name: '', status: '', details: '', isSaved: false }] });
   };
@@ -139,6 +181,7 @@ const MilestoneForm: React.FC<Props> = ({ profile, updateProfile, readOnly, vali
 
   const addCertification = () => {
     if (readOnly) return;
+    setMilestoneStatusShowNext(false);
     const next = profile.certifications.map(c => ({ ...c, isSaved: true }));
     updateProfile({ certifications: [...next, { name: '', status: '', details: '', isSaved: false }] });
   };
@@ -157,6 +200,367 @@ const MilestoneForm: React.FC<Props> = ({ profile, updateProfile, readOnly, vali
   ];
 
   const hasAnyError = !!getError('Projects') || !!getError('Exams') || !!getError('Certifications');
+
+  const [msStep, setMsStep] = useState(0);
+  const [attemptedNext, setAttemptedNext] = useState(false);
+  /** True after user taps Edit on a saved row; false when starting a new entry via Add buttons. */
+  const [milestoneStatusShowNext, setMilestoneStatusShowNext] = useState(false);
+  const inputRef = useRef<HTMLInputElement | HTMLSelectElement | null>(null);
+
+  const goNextMsRef = useRef<() => void>(() => {});
+
+  const draftPtr = useMemo(() => findFirstUnsaved(profile), [profile.projects, profile.exams, profile.certifications]);
+
+  useEffect(() => {
+    if (!typeform || readOnly) return;
+    const t = requestAnimationFrame(() => inputRef.current?.focus());
+    return () => cancelAnimationFrame(t);
+  }, [msStep, typeform, readOnly, draftPtr]);
+
+  useEffect(() => {
+    if (!typeform || readOnly) return;
+    if (msStep >= 1 && msStep <= 3 && !draftPtr) setMsStep(0);
+  }, [draftPtr, msStep, typeform, readOnly]);
+
+  const handleMilestoneStep0Next = useCallback(() => {
+    if (milestoneMandatoryOk(profile)) setMsStep(4);
+    else setAttemptedNext(true);
+  }, [profile]);
+
+  useEffect(() => {
+    if (!typeform || readOnly) return;
+    if (msStep !== 0 && msStep !== 4) return;
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key !== 'Enter' || e.repeat) return;
+      const el = e.target as HTMLElement;
+      if (el.closest('button, a[href], [role="button"]')) return;
+      e.preventDefault();
+      if (msStep === 0) handleMilestoneStep0Next();
+      else onCompleteSection?.();
+    };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, [typeform, readOnly, msStep, handleMilestoneStep0Next, onCompleteSection]);
+
+  if (typeform && !readOnly) {
+    const getDraftEntry = (): UnifiedEntry | null => {
+      if (!draftPtr) return null;
+      if (draftPtr.type === 'project') {
+        const data = profile.projects[draftPtr.index];
+        return data ? { type: 'project', index: draftPtr.index, data } : null;
+      }
+      if (draftPtr.type === 'certification') {
+        const data = profile.certifications[draftPtr.index];
+        return data ? { type: 'certification', index: draftPtr.index, data } : null;
+      }
+      const data = profile.exams[draftPtr.index];
+      return data ? { type: 'exam', index: draftPtr.index, data } : null;
+    };
+
+    const updateDraft = (updates: Partial<ProjectDetail> & Partial<MilestoneDetail>) => {
+      if (!draftPtr) return;
+      if (draftPtr.type === 'project') updateProject(draftPtr.index, updates);
+      else if (draftPtr.type === 'certification') updateCertification(draftPtr.index, updates);
+      else updateExam(draftPtr.index, updates);
+    };
+
+    const goBackMs = () => {
+      setAttemptedNext(false);
+      if (msStep > 0) setMsStep(msStep - 1);
+      else onBackFromFirst?.();
+    };
+
+    const goNextMs = () => {
+      if (msStep === 1) {
+        setAttemptedNext(true);
+        const e = getDraftEntry();
+        if (!e || !e.data.name.trim()) return;
+        setAttemptedNext(false);
+        setMsStep(2);
+        return;
+      }
+      if (msStep === 2) {
+        setAttemptedNext(true);
+        const e = getDraftEntry();
+        if (!e || !(e.data as MilestoneDetail).status) return;
+        setAttemptedNext(false);
+        setMsStep(3);
+        return;
+      }
+      if (msStep === 3) {
+        const e = getDraftEntry();
+        if (e) updateDraft({ isSaved: true });
+        setAttemptedNext(false);
+        setMsStep(0);
+        return;
+      }
+      if (msStep === 4) {
+        onCompleteSection?.();
+      }
+    };
+
+    goNextMsRef.current = goNextMs;
+
+    const entry = getDraftEntry();
+    const savedProjects = profile.projects
+      .map((p, i) => ({ ...p, index: i }))
+      .filter((p: any) => p?.name?.trim() && p.isSaved !== false);
+    const savedCertifications = profile.certifications
+      .map((c, i) => ({ ...c, index: i }))
+      .filter((c: any) => c?.name?.trim() && c.isSaved !== false);
+    const savedExams = profile.exams
+      .map((e, i) => ({ ...e, index: i }))
+      .filter((e: any) => e?.name?.trim() && e.isSaved !== false);
+
+    const editSpecificEntry = (type: EntryType, index: number) => {
+      setAttemptedNext(false);
+      setMilestoneStatusShowNext(true);
+      if (type === 'project') {
+        updateProfile({
+          projects: profile.projects.map((p: any, i: number) => ({ ...p, isSaved: i !== index })),
+          certifications: profile.certifications.map((c: any) => ({ ...c, isSaved: true })),
+          exams: profile.exams.map((e: any) => ({ ...e, isSaved: true })),
+        });
+      } else if (type === 'certification') {
+        updateProfile({
+          projects: profile.projects.map((p: any) => ({ ...p, isSaved: true })),
+          certifications: profile.certifications.map((c: any, i: number) => ({ ...c, isSaved: i !== index })),
+          exams: profile.exams.map((e: any) => ({ ...e, isSaved: true })),
+        });
+      } else {
+        updateProfile({
+          projects: profile.projects.map((p: any) => ({ ...p, isSaved: true })),
+          certifications: profile.certifications.map((c: any) => ({ ...c, isSaved: true })),
+          exams: profile.exams.map((e: any, i: number) => ({ ...e, isSaved: i !== index })),
+        });
+      }
+      setTimeout(() => setMsStep(1), 120);
+    };
+
+    let titleLabel = '';
+    let titlePlaceholder = '';
+    let statusOptions: string[] = [];
+    let typeLabel = '';
+    if (entry) {
+      if (entry.type === 'project') {
+        titleLabel = 'Project title';
+        titlePlaceholder = 'e.g. Rainfall prediction model';
+        statusOptions = PROJECT_STATUS_OPTIONS;
+        typeLabel = 'Project';
+      } else if (entry.type === 'certification') {
+        titleLabel = 'Certification name';
+        titlePlaceholder = 'e.g. AWS Solutions Architect';
+        statusOptions = CERTIFICATION_STATUS_OPTIONS;
+        typeLabel = 'Certification';
+      } else {
+        titleLabel = 'Exam name';
+        titlePlaceholder = 'e.g. GATE, GRE';
+        statusOptions = EXAM_STATUS_OPTIONS;
+        typeLabel = 'Exam';
+      }
+    }
+
+    return (
+      <div className="min-h-[50vh] flex flex-col justify-center px-1 pb-8">
+        <p className="text-[11px] font-bold uppercase tracking-[0.2em] text-slate-400 mb-6">
+          {msStep === 4 ? 'Done' : `Step ${msStep + 1}`}
+        </p>
+        <AnimatePresence mode="wait">
+          {msStep === 0 && (
+            <TypeformSlide slideKey="ms0">
+              <label className={typeformLabelClass}>Add a project, certification, or exam</label>
+              <p className="text-sm text-slate-500 mb-8">Pick one to start. You can add more later.</p>
+              {hasAnyError && <p className="text-red-500 text-sm mb-4">Add at least one achievement to continue</p>}
+              <div className="flex flex-col gap-3">
+                <button
+                  type="button"
+                  onClick={() => {
+                    addProject();
+                    setMsStep(1);
+                    setAttemptedNext(false);
+                  }}
+                  className="flex items-center justify-center gap-2 py-4 rounded-2xl border-2 border-blue-200 bg-blue-50/50 text-blue-800 font-bold hover:bg-blue-50"
+                >
+                  <FolderGit2 className="w-5 h-5" />
+                  Add project
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    addCertification();
+                    setMsStep(1);
+                    setAttemptedNext(false);
+                  }}
+                  className="flex items-center justify-center gap-2 py-4 rounded-2xl border-2 border-emerald-200 bg-emerald-50/50 text-emerald-800 font-bold hover:bg-emerald-50"
+                >
+                  <Award className="w-5 h-5" />
+                  Add certification
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    addExam();
+                    setMsStep(1);
+                    setAttemptedNext(false);
+                  }}
+                  className="flex items-center justify-center gap-2 py-4 rounded-2xl border-2 border-violet-200 bg-violet-50/50 text-violet-800 font-bold hover:bg-violet-50"
+                >
+                  <BookOpen className="w-5 h-5" />
+                  Add exam
+                </button>
+              </div>
+              <div className="mt-5 space-y-4">
+                <div className="space-y-2">
+                  {savedProjects.map((p: any) => (
+                    <div key={`proj-${p.index}`} className="flex items-center justify-between rounded-xl border border-slate-200 bg-white px-3 py-2">
+                      <div className="min-w-0">
+                        <p className="text-sm font-bold text-[#2c4869] truncate">Project Title: {p.name}</p>
+                        <p className="text-xs text-slate-600">Status: {p.status || '—'}</p>
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => editSpecificEntry('project', p.index)}
+                        className="ml-3 text-xs font-bold text-[#2c4869] underline underline-offset-2"
+                      >
+                        Edit
+                      </button>
+                    </div>
+                  ))}
+                </div>
+                <div className="space-y-2">
+                  {savedCertifications.map((c: any) => (
+                    <div key={`cert-${c.index}`} className="flex items-center justify-between rounded-xl border border-slate-200 bg-white px-3 py-2">
+                      <div className="min-w-0">
+                        <p className="text-sm font-bold text-[#2c4869] truncate">Certification Name: {c.name}</p>
+                        <p className="text-xs text-slate-600">Status / Completion: {c.status || '—'}</p>
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => editSpecificEntry('certification', c.index)}
+                        className="ml-3 text-xs font-bold text-[#2c4869] underline underline-offset-2"
+                      >
+                        Edit
+                      </button>
+                    </div>
+                  ))}
+                </div>
+                <div className="space-y-2">
+                  {savedExams.map((e: any) => (
+                    <div key={`exam-${e.index}`} className="flex items-center justify-between rounded-xl border border-slate-200 bg-white px-3 py-2">
+                      <div className="min-w-0">
+                        <p className="text-sm font-bold text-[#2c4869] truncate">Exam Name: {e.name}</p>
+                        <p className="text-xs text-slate-600">Score / Status: {e.status || '—'}</p>
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => editSpecificEntry('exam', e.index)}
+                        className="ml-3 text-xs font-bold text-[#2c4869] underline underline-offset-2"
+                      >
+                        Edit
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              </div>
+              <TypeformNav
+                showBack={!!onBackFromFirst}
+                onBack={goBackMs}
+                onNext={handleMilestoneStep0Next}
+                nextLabel={milestoneMandatoryOk(profile) ? 'Continue' : 'Next'}
+              />
+              {attemptedNext && msStep === 0 && !milestoneMandatoryOk(profile) && (
+                <p className="text-red-500 text-sm mt-2">Choose a type above or finish a draft entry</p>
+              )}
+            </TypeformSlide>
+          )}
+
+          {msStep === 1 && entry && (
+            <TypeformSlide slideKey="ms1">
+              <p className="text-xs font-bold uppercase tracking-widest text-slate-400 mb-2">{typeLabel}</p>
+              <label className={typeformLabelClass}>
+                {titleLabel} <span className="text-red-500">*</span>
+              </label>
+              <input
+                ref={inputRef as React.RefObject<HTMLInputElement>}
+                type="text"
+                value={entry.data.name || ''}
+                onChange={(e) => updateDraft({ name: e.target.value })}
+                onKeyDown={(e) => {
+                  if (e.key !== 'Enter') return;
+                  e.preventDefault();
+                  goNextMs();
+                }}
+                placeholder={titlePlaceholder}
+                className={typeformInputClass(attemptedNext && !entry.data.name.trim())}
+              />
+              {attemptedNext && !entry.data.name.trim() && (
+                <p className="text-red-500 text-sm mt-2">Name is required</p>
+              )}
+              <TypeformNav showBack onBack={goBackMs} onNext={goNextMs} nextDisabled={!entry.data.name.trim()} />
+            </TypeformSlide>
+          )}
+
+          {msStep === 2 && entry && (
+            <TypeformSlide slideKey="ms2">
+              <label className={typeformLabelClass}>
+                Status for “{entry.data.name.trim() || 'this entry'}” <span className="text-red-500">*</span>
+              </label>
+              <TypeformToggleGroup
+                value={(entry.data as MilestoneDetail).status || ''}
+                onSelect={(value) => {
+                  updateDraft({ status: value });
+                  setAttemptedNext(false);
+                  if (!typeformResumeEdit) setTimeout(() => setMsStep(3), 120);
+                }}
+                options={statusOptions.map((opt) => ({ label: opt, value: opt }))}
+              />
+              {attemptedNext && !(entry.data as MilestoneDetail).status && (
+                <p className="text-red-500 text-sm mt-2">Please select a status</p>
+              )}
+              <TypeformNav
+                showBack
+                onBack={goBackMs}
+                onNext={goNextMs}
+                hideNext={!(typeformResumeEdit || milestoneStatusShowNext)}
+                nextDisabled={!(entry.data as MilestoneDetail).status}
+              />
+            </TypeformSlide>
+          )}
+
+          {msStep === 3 && entry && (
+            <TypeformSlide slideKey="ms3">
+              <label className={typeformLabelClass}>Any extra details? (optional)</label>
+              <p className="text-sm text-slate-500 mb-6">Scores, dates, links — whatever helps.</p>
+              <textarea
+                value={entry.data.details || ''}
+                onChange={(e) => updateDraft({ details: e.target.value })}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter' && !e.shiftKey) {
+                    e.preventDefault();
+                    goNextMs();
+                  }
+                }}
+                placeholder="Optional notes"
+                rows={4}
+                className="w-full px-4 py-3 rounded-2xl border-2 border-slate-200 text-[#2c4869] outline-none focus:border-[#f58434] text-base"
+              />
+              <TypeformNav showBack onBack={goBackMs} onNext={goNextMs} nextLabel="Save entry" />
+            </TypeformSlide>
+          )}
+
+          {msStep === 4 && (
+            <TypeformSlide slideKey="ms4">
+              <label className={typeformLabelClass}>Ready for the next section?</label>
+              <p className="text-sm text-slate-500 mb-8">You can edit milestones anytime from the section list.</p>
+              <TypeformNav showBack onBack={() => setMsStep(0)} onNext={goNextMs} nextLabel="Continue" />
+            </TypeformSlide>
+          )}
+        </AnimatePresence>
+
+        
+      </div>
+    );
+  }
 
   return (
     <div className={`space-y-8 animate-in slide-in-from-right-4 duration-500 pb-20 ${readOnly ? 'opacity-60 pointer-events-none' : ''}`}>

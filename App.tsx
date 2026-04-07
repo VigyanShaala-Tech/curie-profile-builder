@@ -16,7 +16,7 @@ import { Auth } from './components/Auth';
 import { motion, AnimatePresence } from 'motion/react';
 import confetti from 'canvas-confetti';
 
-const VIGYAN_SHAALA_LOGO = '/log.png';
+const VIGYAN_SHAALA_LOGO = '/images/log.png';
 const STORAGE_KEY = 'vs_reflection_profile';
 const CHAT_PREFS_KEY = 'vs_chat_preferences';
 const STRICT_EMAIL_REGEX = /^[A-Za-z0-9._%+-]+@(gmail\.com|yahoo\.com|outlook\.com)$/i;

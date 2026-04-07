@@ -9,7 +9,7 @@ interface AuthProps {
 type LoginStep = 0 | 1;
 type ForgotStep = 0 | 1 | 2 | 3;
 
-const RIGHT_IMAGE_SRC = 'Curie_2.png';
+const RIGHT_IMAGE_SRC = '/images/Curie_2.png';
 
 export const Auth: React.FC<AuthProps> = ({ onLogin }) => {
   const [isLogin, setIsLogin] = useState(true);
@@ -133,7 +133,7 @@ export const Auth: React.FC<AuthProps> = ({ onLogin }) => {
         <div className="w-full max-w-xl">
           <div className="mb-8 sm:mb-10">
             <img
-              src="/log.png"
+              src="/images/log.png"
               alt="VigyanShaala"
               className="h-8 sm:h-10 w-auto object-contain"
             />

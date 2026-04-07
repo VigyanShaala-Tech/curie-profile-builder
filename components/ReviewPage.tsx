@@ -15,7 +15,7 @@ interface Props {
   updateProfile: (updates: Partial<Profile>) => void;
 }
 
-const VIGYAN_SHAALA_LOGO = '/log.png';
+const VIGYAN_SHAALA_LOGO = '/images/log.png';
 const STORAGE_KEY = 'vs_reflection_profile';
 
 const ReviewPage: React.FC<Props> = ({ profile, completeness, setCurrentSection, chatPreferences, setChatPreferences, updateProfile }) => {

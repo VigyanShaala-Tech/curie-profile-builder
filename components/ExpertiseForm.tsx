@@ -2,7 +2,7 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { AnimatePresence } from 'motion/react';
 import { Profile } from '../types';
-import { TypeformSlide, TypeformNav, typeformInputClass, typeformLabelClass } from './TypeformSlide';
+import { TypeformSlide, TypeformNav, typeformInputClass, typeformLabelClass, formFieldErrorClass } from './TypeformSlide';
 
 interface Props {
   profile: Profile;
@@ -102,7 +102,7 @@ const SkillSection = ({ title, description, examples, value, onChange, onAdd, pl
       <div className="mb-4">
         <p className="text-xs font-bold text-[#2c4869] mb-1">{description}</p>
         {examples ? null : null}
-        {errorMessage && <p className="text-red-500 text-[10px] font-bold mt-1">{errorMessage}</p>}
+        {errorMessage && <p className={formFieldErrorClass}>{errorMessage}</p>}
       </div>
       <InputRow value={value} onChange={onChange} onAdd={onAdd} placeholder={placeholder} disabled={readOnly} />
       <TagCloud items={items} field={field} color={color} onRemove={onRemove} readOnly={readOnly} />
@@ -288,8 +288,8 @@ const ExpertiseForm: React.FC<Props> = ({
             </label>
             <p className="text-sm text-slate-500 mb-2">{cfg.description}</p>
             <div className="mb-6" />
-            {getError(cfg.err) && <p className="text-red-500 text-sm mb-2">{getError(cfg.err)}</p>}
-            {limitMessage && <p className="text-red-500 text-sm mb-2">{limitMessage}</p>}
+            {getError(cfg.err) && <p className={`${formFieldErrorClass} mb-2`}>{getError(cfg.err)}</p>}
+            {limitMessage && <p className={`${formFieldErrorClass} mb-2`}>{limitMessage}</p>}
             <div className="flex flex-col sm:flex-row gap-2 sm:gap-3 mb-6">
               <input
                 ref={inputRef}
@@ -338,9 +338,9 @@ const ExpertiseForm: React.FC<Props> = ({
   return (
     <div className={`space-y-8 animate-in slide-in-from-right-4 duration-500 pb-20 ${readOnly ? 'opacity-60 pointer-events-none' : ''}`}>
       <div className={`space-y-6 transition-all`}>
-        {limitMessage && <p className="text-red-600 font-bold text-sm px-4">{limitMessage}</p>}
+        {limitMessage && <p className={`${formFieldErrorClass} px-4`}>{limitMessage}</p>}
         {!!getError('Subject Expertise') || !!getError('Technical Tools') || !!getError('AI & Data Skills') || !!getError('Professional Skills') || !!getError('Academic Interests') ? (
-          <p className="text-red-600 font-bold text-sm px-4">Please add at least one item to any of the following expertise areas:</p>
+          <p className={`${formFieldErrorClass} px-4`}>Please add at least one item to any of the following expertise areas:</p>
         ) : null}
         {/* 1. Subject Knowledge */}
         <SkillSection 

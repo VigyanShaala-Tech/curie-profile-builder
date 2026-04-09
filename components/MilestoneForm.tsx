@@ -2,7 +2,7 @@
 import React, { useState, useRef, useEffect, useMemo, useCallback } from 'react';
 import { AnimatePresence } from 'motion/react';
 import { Pencil, FolderGit2, Award, BookOpen } from 'lucide-react';
-import { TypeformSlide, TypeformNav, TypeformToggleGroup, typeformInputClass, typeformLabelClass } from './TypeformSlide';
+import { TypeformSlide, TypeformNav, TypeformToggleGroup, typeformInputClass, typeformLabelClass, formFieldErrorClass } from './TypeformSlide';
 import { Profile, MilestoneDetail, ProjectDetail } from '../types';
 import { 
   EXAM_STATUS_OPTIONS,
@@ -370,7 +370,7 @@ const MilestoneForm: React.FC<Props> = ({
             <TypeformSlide slideKey="ms0">
               <label className={typeformLabelClass}>Add a project, certification, or exam</label>
               <p className="text-sm text-slate-500 mb-8">Pick one to start. You can add more later.</p>
-              {hasAnyError && <p className="text-red-500 text-sm mb-4">Add at least one achievement to continue</p>}
+              {hasAnyError && <p className={`${formFieldErrorClass} mb-4`}>Add at least one achievement to continue</p>}
               <div className="flex flex-col gap-3">
                 <button
                   type="button"
@@ -469,7 +469,7 @@ const MilestoneForm: React.FC<Props> = ({
                 nextLabel={milestoneMandatoryOk(profile) ? 'Continue' : 'Next'}
               />
               {attemptedNext && msStep === 0 && !milestoneMandatoryOk(profile) && (
-                <p className="text-red-500 text-sm mt-2">Choose a type above or finish a draft entry</p>
+                <p className={formFieldErrorClass}>Choose a type above or finish a draft entry</p>
               )}
             </TypeformSlide>
           )}
@@ -494,7 +494,7 @@ const MilestoneForm: React.FC<Props> = ({
                 className={typeformInputClass(attemptedNext && !entry.data.name.trim())}
               />
               {attemptedNext && !entry.data.name.trim() && (
-                <p className="text-red-500 text-sm mt-2">Name is required</p>
+                <p className={formFieldErrorClass}>Name is required</p>
               )}
               <TypeformNav showBack onBack={goBackMs} onNext={goNextMs} nextDisabled={!entry.data.name.trim()} />
             </TypeformSlide>
@@ -515,7 +515,7 @@ const MilestoneForm: React.FC<Props> = ({
                 options={statusOptions.map((opt) => ({ label: opt, value: opt }))}
               />
               {attemptedNext && !(entry.data as MilestoneDetail).status && (
-                <p className="text-red-500 text-sm mt-2">Please select a status</p>
+                <p className={formFieldErrorClass}>Please select a status</p>
               )}
               <TypeformNav
                 showBack
@@ -566,7 +566,7 @@ const MilestoneForm: React.FC<Props> = ({
     <div className={`space-y-8 animate-in slide-in-from-right-4 duration-500 pb-20 ${readOnly ? 'opacity-60 pointer-events-none' : ''}`}>
       <div className={`space-y-6 transition-all`}>
         {hasAnyError ? (
-          <p className="text-red-600 font-bold text-sm px-4">Please add at least one item to your achievements.</p>
+          <p className={`${formFieldErrorClass} px-4`}>Please add at least one item to your achievements.</p>
         ) : null}
         
         <div className={`p-6 bg-white rounded-3xl border ${hasAnyError ? 'border-red-500 ring-2 ring-red-100' : 'border-slate-100'} shadow-sm transition-all duration-300`}>
@@ -691,7 +691,7 @@ const MilestoneForm: React.FC<Props> = ({
                             disabled={readOnly}
                             className={`w-full px-3 py-2 rounded-lg border ${getError(`${type}Name_${index}`) ? 'border-red-300 bg-red-50' : 'border-slate-200'} text-sm font-bold outline-none focus:ring-1 focus:ring-[#f58434] bg-white`}
                           />
-                          {getError(`${type}Name_${index}`) && <p className="text-red-500 text-xs font-bold mt-1">{getError(`${type}Name_${index}`)}</p>}
+                          {getError(`${type}Name_${index}`) && <p className={formFieldErrorClass}>{getError(`${type}Name_${index}`)}</p>}
                         </div>
 
                         {name.trim().length > 0 && (
@@ -709,7 +709,7 @@ const MilestoneForm: React.FC<Props> = ({
                                   <option key={opt} value={opt}>{opt}</option>
                                 ))}
                               </select>
-                              {getError(`${type}Status_${index}`) && <p className="text-red-500 text-xs font-bold mt-1">{getError(`${type}Status_${index}`)}</p>}
+                              {getError(`${type}Status_${index}`) && <p className={formFieldErrorClass}>{getError(`${type}Status_${index}`)}</p>}
                             </div>
 
                             {status && (

@@ -13,6 +13,7 @@ import SectionSummary from './components/SectionSummary';
 import EmojiBurst from './components/EmojiBurst';
 import ChatSettings from './components/ChatSettings';
 import { Auth } from './components/Auth';
+import JourneyHorizontalTracker from './components/JourneyHorizontalTracker';
 import { motion, AnimatePresence } from 'motion/react';
 import confetti from 'canvas-confetti';
 
@@ -1179,64 +1180,22 @@ const App: React.FC = () => {
                       ? `Step ${JOURNEY_STEPS.indexOf(editingSection) + 1} of ${JOURNEY_STEPS.length}`
                       : 'Your journey'}
                   </p>
-                  <div className="flex items-center gap-1 w-full min-w-max justify-center sm:justify-between overflow-x-auto no-scrollbar">
-                    {JOURNEY_STEPS.map((sec, idx) => {
-                      const isCompleted = completedMap[sec];
-                      const isActive = editingSection === sec;
-                      const isUnlocked = idx <= currentSectionIndex;
-                      const isReflectionLocked = sec === Section.REFLECTIONS && !level1Complete;
-                      const isLocked = !isUnlocked || isReflectionLocked;
-                      const label =
-                        sec === Section.BASIC
-                          ? 'IDENTITY'
-                          : sec === Section.ACADEMIC
-                          ? 'ACADEMICS'
-                          : sec === Section.SKILLS
-                          ? 'EXPERTISE'
-                          : sec === Section.MILESTONES
-                          ? 'MILESTONES'
-                          : 'REFLECTIONS';
-
-                      return (
-                        <React.Fragment key={`card-pill-bottom-${sec}`}>
-                          <button
-                            type="button"
-                            disabled={isLocked}
-                            onClick={() => {
-                              if (isReflectionLocked) {
-                                setSkipMessage('Please complete all required Level 1 sections to unlock Reflections.');
-                                setTimeout(() => setSkipMessage(null), 3200);
-                                return;
-                              }
-                              setResumeSectionEdit(null);
-                              setEditingSection(sec);
-                              sectionRefs.current[sec]?.scrollIntoView({ behavior: 'smooth', block: 'start' });
-                            }}
-                            className={`whitespace-nowrap px-2.5 py-1 rounded-full text-[9px] sm:text-[10px] font-black tracking-wider transition-all border ${
-                              isCompleted
-                                ? 'bg-emerald-50 text-emerald-700 border-emerald-300'
-                                : isActive
-                                ? 'bg-blue-50 text-blue-700 border-blue-300 shadow-sm'
-                                : isLocked
-                                ? 'bg-white text-slate-300 border-slate-200 cursor-not-allowed'
-                                : 'bg-white text-slate-500 border-slate-200 hover:bg-slate-50'
-                            }`}
-                          >
-                            {isCompleted ? `✅ ${label}` : isLocked ? `🔒 ${label}` : label}
-                          </button>
-                          {idx < JOURNEY_STEPS.length - 1 && (
-                            <div className="w-5 h-[3px] rounded-full overflow-hidden bg-white border border-slate-200">
-                              <div
-                                className={`h-full transition-all duration-700 ease-in-out ${
-                                  completedMap[sec] ? 'w-full bg-emerald-500' : 'w-0 bg-emerald-500'
-                                }`}
-                              />
-                            </div>
-                          )}
-                        </React.Fragment>
-                      );
-                    })}
-                  </div>
+                  <JourneyHorizontalTracker
+                    journeySteps={JOURNEY_STEPS}
+                    completedMap={completedMap}
+                    editingSection={editingSection}
+                    currentSectionIndex={currentSectionIndex}
+                    level1Complete={level1Complete}
+                    onReflectionLockedAttempt={() => {
+                      setSkipMessage('Please complete all required Level 1 sections to unlock Reflections.');
+                      setTimeout(() => setSkipMessage(null), 3200);
+                    }}
+                    onSelectStep={(sec) => {
+                      setResumeSectionEdit(null);
+                      setEditingSection(sec);
+                      sectionRefs.current[sec]?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+                    }}
+                  />
                 </div>
               </div>
 
@@ -1250,7 +1209,7 @@ const App: React.FC = () => {
                     </div>
                     <div>
                       <p className="text-xs font-bold text-red-800 mb-1 uppercase tracking-wider">Please fix the following</p>
-                      <ul className="text-sm text-red-700 leading-relaxed list-disc list-inside">
+                      <ul className="text-xs text-red-600 font-bold leading-relaxed list-disc list-inside mt-1 space-y-1">
                         {Object.values(validationErrors.fields).map((error, i) => (
                           <li key={i}>{error}</li>
                         ))}

@@ -3,7 +3,7 @@ import React, { useEffect, useRef, useState } from 'react';
 import { AnimatePresence } from 'motion/react';
 import { Profile } from '../types';
 import { DEGREE_OPTIONS, STEM_HIERARCHY } from '../constants';
-import { TypeformSlide, TypeformNav, TypeformToggleGroup, typeformInputClass, typeformLabelClass } from './TypeformSlide';
+import { TypeformSlide, TypeformNav, TypeformToggleGroup, typeformInputClass, typeformLabelClass, formFieldErrorClass } from './TypeformSlide';
 
 interface Props {
   profile: Profile;
@@ -184,10 +184,10 @@ const AcademicForm: React.FC<Props> = ({
                 </button>
               </div>
               {attemptedNext && !profile.academicStatus && (
-                <p className="text-red-500 text-sm mt-4">Please select one option</p>
+                <p className="text-red-500 font-bold text-xs mt-4">Please select one option</p>
               )}
               {validationErrors.academicStatus && (
-                <p className="text-red-500 text-sm mt-2">{validationErrors.academicStatus}</p>
+                <p className={formFieldErrorClass}>{validationErrors.academicStatus}</p>
               )}
               <TypeformNav
                 showBack={!!onBackFromFirst}
@@ -215,7 +215,7 @@ const AcademicForm: React.FC<Props> = ({
                 className={typeformInputClass(!!validationErrors.collegeName || (attemptedNext && !profile.collegeName.trim()))}
               />
               {(validationErrors.collegeName || (attemptedNext && !profile.collegeName.trim())) && (
-                <p className="text-red-500 text-sm mt-2">{validationErrors.collegeName || 'Required'}</p>
+                <p className={formFieldErrorClass}>{validationErrors.collegeName || 'Required'}</p>
               )}
               <TypeformNav showBack onBack={goBack} onNext={goNext} nextDisabled={!profile.collegeName.trim()} />
             </TypeformSlide>
@@ -238,7 +238,7 @@ const AcademicForm: React.FC<Props> = ({
                 options={DEGREE_OPTIONS.map((opt) => ({ label: opt, value: opt }))}
               />
               {(validationErrors.degreeType || (attemptedNext && !profile.degreeType)) && (
-                <p className="text-red-500 text-sm mt-2">{validationErrors.degreeType || 'Required'}</p>
+                <p className={formFieldErrorClass}>{validationErrors.degreeType || 'Required'}</p>
               )}
               <TypeformNav
                 showBack
@@ -271,7 +271,7 @@ const AcademicForm: React.FC<Props> = ({
                     }))}
                   />
                   {(validationErrors.yearOfStudy || (attemptedNext && !profile.yearOfStudy)) && (
-                    <p className="text-red-500 text-sm mt-2">{validationErrors.yearOfStudy || 'Required'}</p>
+                    <p className={formFieldErrorClass}>{validationErrors.yearOfStudy || 'Required'}</p>
                   )}
                 </>
               ) : (
@@ -289,7 +289,7 @@ const AcademicForm: React.FC<Props> = ({
                     className={typeformInputClass(!!validationErrors.graduationYear || (attemptedNext && !(profile.graduationYear || '').trim()))}
                   />
                   {(validationErrors.graduationYear || (attemptedNext && !(profile.graduationYear || '').trim())) && (
-                    <p className="text-red-500 text-sm mt-2">{validationErrors.graduationYear || 'Required'}</p>
+                    <p className={formFieldErrorClass}>{validationErrors.graduationYear || 'Required'}</p>
                   )}
                 </>
               )}
@@ -397,10 +397,10 @@ const AcademicForm: React.FC<Props> = ({
                 </div>
               </div>
               {cgpaInputError && (
-                <p className="text-red-500 text-sm mt-2">{cgpaInputError}</p>
+                <p className={formFieldErrorClass}>{cgpaInputError}</p>
               )}
               {(validationErrors.cgpa || (attemptedNext && !(currentCgpa.trim() || currentPercentage.trim()))) && (
-                <p className="text-red-500 text-sm mt-2">{validationErrors.cgpa || 'Please provide either your CGPA or Percentage.'}</p>
+                <p className={formFieldErrorClass}>{validationErrors.cgpa || 'Please provide either your CGPA or Percentage.'}</p>
               )}
               <TypeformNav
                 showBack
@@ -444,10 +444,10 @@ const AcademicForm: React.FC<Props> = ({
                 ))}
               </div>
               {attemptedNext && !profile.topLevelCategory && (
-                <p className="text-red-500 text-sm mt-4">Please choose a stream</p>
+                <p className="text-red-500 font-bold text-xs mt-4">Please choose a stream</p>
               )}
               {validationErrors.topLevelCategory && (
-                <p className="text-red-500 text-sm mt-2">{validationErrors.topLevelCategory}</p>
+                <p className={formFieldErrorClass}>{validationErrors.topLevelCategory}</p>
               )}
               <TypeformNav
                 showBack
@@ -492,10 +492,10 @@ const AcademicForm: React.FC<Props> = ({
                 />
               )}
               {(validationErrors.specializationCategory || (attemptedNext && !profile.specializationCategory)) && (
-                <p className="text-red-500 text-sm mt-2">{validationErrors.specializationCategory || 'Required'}</p>
+                <p className={formFieldErrorClass}>{validationErrors.specializationCategory || 'Required'}</p>
               )}
               {attemptedNext && profile.specializationCategory === 'Other' && !profile.customCategory.trim() && (
-                <p className="text-red-500 text-sm mt-2">Please specify your subject area</p>
+                <p className={formFieldErrorClass}>Please specify your subject area</p>
               )}
               <TypeformNav
                 showBack
@@ -547,10 +547,10 @@ const AcademicForm: React.FC<Props> = ({
                 />
               )}
               {(validationErrors.specialization || (attemptedNext && !profile.specialization)) && (
-                <p className="text-red-500 text-sm mt-2">{validationErrors.specialization || 'Required'}</p>
+                <p className={formFieldErrorClass}>{validationErrors.specialization || 'Required'}</p>
               )}
               {attemptedNext && profile.specialization === 'Other' && !profile.customSpecialization.trim() && (
-                <p className="text-red-500 text-sm mt-2">Please specify your specialization</p>
+                <p className={formFieldErrorClass}>Please specify your specialization</p>
               )}
               <TypeformNav
                 showBack
@@ -605,7 +605,7 @@ const AcademicForm: React.FC<Props> = ({
               Graduated / Alumni
             </button>
           </div>
-          {validationErrors.academicStatus && <p className="text-red-500 text-xs mt-1">{validationErrors.academicStatus}</p>}
+          {validationErrors.academicStatus && <p className={formFieldErrorClass}>{validationErrors.academicStatus}</p>}
         </div>
 
         {profile.academicStatus && (
@@ -622,7 +622,7 @@ const AcademicForm: React.FC<Props> = ({
                 disabled={readOnly}
                 className={`w-full px-4 py-3 rounded-xl border ${validationErrors.collegeName ? 'border-red-500 ring-2 ring-red-100' : 'border-slate-200 focus:ring-2 focus:ring-[#f58434]'} outline-none transition-all font-medium`}
               />
-              {validationErrors.collegeName && <p className="text-red-500 text-xs mt-1">{validationErrors.collegeName}</p>}
+              {validationErrors.collegeName && <p className={formFieldErrorClass}>{validationErrors.collegeName}</p>}
             </div>
 
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
@@ -639,7 +639,7 @@ const AcademicForm: React.FC<Props> = ({
                   <option value="">Select Degree</option>
                   {DEGREE_OPTIONS.map(opt => <option key={opt} value={opt}>{opt}</option>)}
                 </select>
-                {validationErrors.degreeType && <p className="text-red-500 text-xs mt-1">{validationErrors.degreeType}</p>}
+                {validationErrors.degreeType && <p className={formFieldErrorClass}>{validationErrors.degreeType}</p>}
               </div>
               
               {profile.academicStatus === 'studying' && (!readOnly || profile.yearOfStudy) && (
@@ -658,7 +658,7 @@ const AcademicForm: React.FC<Props> = ({
                       </option>
                     ))}
                   </select>
-                  {validationErrors.yearOfStudy && <p className="text-red-500 text-xs mt-1">{validationErrors.yearOfStudy}</p>}
+                  {validationErrors.yearOfStudy && <p className={formFieldErrorClass}>{validationErrors.yearOfStudy}</p>}
                 </div>
               )}
 
@@ -673,7 +673,7 @@ const AcademicForm: React.FC<Props> = ({
                     disabled={readOnly}
                     className={`w-full px-4 py-3 rounded-xl border ${validationErrors.graduationYear ? 'border-red-500 ring-2 ring-red-100' : 'border-slate-200 focus:ring-2 focus:ring-[#f58434]'} outline-none transition-all font-medium`}
                   />
-                  {validationErrors.graduationYear && <p className="text-red-500 text-xs mt-1">{validationErrors.graduationYear}</p>}
+                  {validationErrors.graduationYear && <p className={formFieldErrorClass}>{validationErrors.graduationYear}</p>}
                 </div>
               )}
             </div>
@@ -724,7 +724,7 @@ const AcademicForm: React.FC<Props> = ({
                     />
                   </div>
                 </div>
-                {validationErrors.cgpa && <p className="text-red-500 text-xs mt-1">{validationErrors.cgpa}</p>}
+                {validationErrors.cgpa && <p className={formFieldErrorClass}>{validationErrors.cgpa}</p>}
               </div>
             )}
 
@@ -754,7 +754,7 @@ const AcademicForm: React.FC<Props> = ({
                     </button>
                   ))}
                 </div>
-                {validationErrors.topLevelCategory && <p className="text-red-500 text-xs mt-1">{validationErrors.topLevelCategory}</p>}
+                {validationErrors.topLevelCategory && <p className={formFieldErrorClass}>{validationErrors.topLevelCategory}</p>}
               </div>
               
               {profile.topLevelCategory && (
@@ -774,7 +774,7 @@ const AcademicForm: React.FC<Props> = ({
                     <option value="">Select Area</option>
                     {categories.map(cat => <option key={cat} value={cat}>{cat}</option>)}
                   </select>
-                  {validationErrors.specializationCategory && <p className="text-red-500 text-xs mt-1">{validationErrors.specializationCategory}</p>}
+                  {validationErrors.specializationCategory && <p className={formFieldErrorClass}>{validationErrors.specializationCategory}</p>}
 
                   {profile.specializationCategory === 'Other' && (
                     <div className="animate-in slide-in-from-top-2 duration-300">
@@ -809,7 +809,7 @@ const AcademicForm: React.FC<Props> = ({
                     <option value="">Select Specialization</option>
                     {subFields.map(sub => <option key={sub} value={sub}>{sub}</option>)}
                   </select>
-                  {validationErrors.specialization && <p className="text-red-500 text-xs mt-1">{validationErrors.specialization}</p>}
+                  {validationErrors.specialization && <p className={formFieldErrorClass}>{validationErrors.specialization}</p>}
 
                   {profile.specialization === 'Other' && (
                     <div className="animate-in slide-in-from-top-2 duration-300">

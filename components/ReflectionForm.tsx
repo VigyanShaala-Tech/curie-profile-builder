@@ -4,7 +4,7 @@ import { AnimatePresence } from 'motion/react';
 import { Brain, ChevronDown, ChevronUp } from 'lucide-react';
 import { Profile } from '../types';
 import { REFLECTION_PROMPTS } from '../constants';
-import { TypeformSlide, TypeformNav, typeformLabelClass } from './TypeformSlide';
+import { TypeformSlide, TypeformNav, typeformLabelClass, formFieldErrorClass } from './TypeformSlide';
 
 interface Props {
   profile: Profile;
@@ -98,7 +98,7 @@ const ReflectionForm: React.FC<Props> = ({
               className="w-full p-4 bg-slate-50 rounded-2xl border-2 border-slate-200 outline-none text-base text-[#2c4869] focus:border-[#f58434] transition-colors"
             />
             {validationErrors[item.key] && (
-              <p className="text-red-500 text-sm font-medium mt-2">{validationErrors[item.key]}</p>
+              <p className={formFieldErrorClass}>{validationErrors[item.key]}</p>
             )}
             <TypeformNav
               showBack={currentIndex > 0 || !!onBackFromFirst}
@@ -161,7 +161,7 @@ const ReflectionForm: React.FC<Props> = ({
           className="w-full min-h-[160px] p-4 bg-slate-50 rounded-xl border border-slate-200 outline-none transition-all text-sm leading-relaxed font-medium focus:ring-2 focus:ring-[#f58434] disabled:bg-slate-100"
         />
         <p className="text-xs text-slate-400 mt-2 font-medium">Write 2–3 sentences.</p>
-        {validationErrors[item.key] && <p className="text-red-500 text-xs font-bold mt-2">{validationErrors[item.key]}</p>}
+        {validationErrors[item.key] && <p className={formFieldErrorClass}>{validationErrors[item.key]}</p>}
       </div>
 
       <div className="flex justify-between mt-8">

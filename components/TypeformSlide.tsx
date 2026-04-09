@@ -27,6 +27,9 @@ export const typeformInputClass = (hasError: boolean) =>
 
 export const typeformLabelClass = 'block text-lg sm:text-xl md:text-2xl font-semibold text-[#2c4869] leading-snug tracking-tight mb-2';
 
+/** Inline validation / field errors — bold red, below inputs */
+export const formFieldErrorClass = 'text-red-500 font-bold text-xs mt-1';
+
 type ToggleOption = {
   label: string;
   value: string;

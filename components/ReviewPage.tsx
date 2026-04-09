@@ -468,7 +468,7 @@ const ReviewPage: React.FC<Props> = ({ profile, completeness, setCurrentSection,
 
             {syncError && (
               <div className="rounded-2xl border border-red-200 bg-red-50 px-4 py-3 text-center">
-                <p className="text-[11px] font-bold text-red-700 break-words">{syncError}</p>
+                <p className="text-xs font-bold text-red-600 break-words">{syncError}</p>
               </div>
             )}
 

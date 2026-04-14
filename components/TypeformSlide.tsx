@@ -86,7 +86,7 @@ export const TypeformNav: React.FC<TypeformNavProps> = ({
   nextDisabled = false,
   hideNext = false,
 }) => (
-  <div className="flex items-center justify-between gap-4 mt-12 pt-6 border-t border-[#2c4869]/15">
+  <div className="flex items-center justify-between gap-4 mt-12 pt-6">
     <button
       type="button"
       onClick={onBack}

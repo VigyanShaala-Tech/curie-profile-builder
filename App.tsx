@@ -981,7 +981,7 @@ const App: React.FC = () => {
         )}
       </AnimatePresence>
       
-      <header className="sticky top-0 z-30 bg-[#9DD3AF] border-b border-[#2c4869]/15 shadow-sm">
+      <header className="sticky top-0 z-30 bg-[#9DD3AF] shadow-sm">
         <div className="max-w-6xl mx-auto px-4 sm:px-6 py-3 flex items-center justify-between gap-4">
           <img
             src={VIGYAN_SHAALA_LOGO}
@@ -1069,7 +1069,7 @@ const App: React.FC = () => {
                         : ''
                     }`}
                   >
-              <div className="transition-all duration-300 rounded-2xl sm:rounded-3xl shadow-sm px-4 py-6 sm:px-8 sm:py-10 border border-[#2c4869]/15 bg-[#9DD3AF]">
+              <div className="transition-all duration-300 rounded-2xl sm:rounded-3xl px-4 py-6 sm:px-8 sm:py-10 bg-[#9DD3AF]">
                 {section === Section.REVIEW ? (
                   <ReviewPage
                     profile={profile}

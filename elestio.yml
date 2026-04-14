@@ -1,0 +1,42 @@
+config:
+  runTime: "NodeJs"
+  version: "20"
+  framework: ""
+  installCommand: "npm install"
+  buildCommand: "npm run build"
+  buildDir: "dist"
+  runCommand: "npm start"
+
+environments:
+  - key: "NODE_ENV"
+    value: "production"
+  - key: "PORT"
+    value: "8505"
+  - key: "JWT_SECRET"
+    value: "random_password"
+  - key: "GOOGLE_SHEETS_SPREADSHEET_ID"
+    value: ""
+  - key: "GOOGLE_SHEETS_SERVICE_ACCOUNT_JSON"
+    value: ""
+
+ports:
+  - protocol: "HTTPS"
+    targetProtocol: "HTTP"
+    listeningPort: "443"
+    targetPort: "8505"
+    targetIP: "172.17.0.1"
+    public: true
+    path: "/"
+    isAuth: false
+    login: ""
+    password: ""
+
+exposedPorts:
+  - protocol: "HTTP"
+    hostPort: "8505"
+    containerPort: "8505"
+    interface: "172.17.0.1"
+
+webUI:
+  - url: "https://[CI_CD_DOMAIN]"
+    label: "Website"

@@ -14,7 +14,9 @@ export const SHEET_COLUMN_HEADERS = [
   'milestones',
   'reflections',
   'chat_settings',
-  'profile'
+  'profile',
+  /** Appended last; populated from Sheet3 phone lookup (new vs returning). */
+  'user_type',
 ] as const;
 
 function normalizeString(value: unknown): string {
@@ -48,10 +50,13 @@ function parseLocation(location: string): { city: string; state: string; country
   return { city, state, country };
 }
 
+export type SheetUserType = 'new' | 'returning';
+
 function profileToSheetsRowObject(
   profile: Profile,
   chatPreferences: ChatPreferences | undefined,
-  _exportedAt: string
+  _exportedAt: string,
+  userType?: SheetUserType
 ): Record<string, string> {
   const { first, last } = splitFirstLast(profile.fullName);
   const key = normalizeString(profile.whatsappNumber).trim();
@@ -169,6 +174,7 @@ function profileToSheetsRowObject(
     reflections: safeJson(reflections),
     chat_settings: safeJson(chat_settings),
     profile: safeJson(profileData),
+    user_type: userType ?? '',
   };
 
   return row;
@@ -177,11 +183,12 @@ function profileToSheetsRowObject(
 export function profileToDataframeRow(
   profile: Profile,
   chatPreferences: ChatPreferences | undefined,
-  exportedAt: string
+  exportedAt: string,
+  userType?: SheetUserType
 ): string[] {
   // Backward-compatible helper: old googleSheets.ts expects a string[].
   // New googleSheets.ts aligns by headers; this function can remain for compatibility.
-  const map = profileToSheetsRowObject(profile, chatPreferences, exportedAt);
+  const map = profileToSheetsRowObject(profile, chatPreferences, exportedAt, userType);
   return Object.values(map);
 }
 

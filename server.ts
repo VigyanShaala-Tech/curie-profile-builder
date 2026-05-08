@@ -10,7 +10,7 @@ import jwt from 'jsonwebtoken';
 import cookieParser from 'cookie-parser';
 import type { ChatPreferences, Profile } from './types';
 import type { NextFunction, Request, Response } from 'express';
-import { appendProfileToGoogleSheet } from './googleSheets';
+import { appendProfileToGoogleSheet, findUserByPhone } from './googleSheets';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const JWT_SECRET = process.env.JWT_SECRET || 'super-secret-key-for-dev';
@@ -178,10 +178,22 @@ async function startServer() {
         return res.status(401).json({ error: 'Invalid phone number or password' });
       }
 
+      let existingRow: Awaited<ReturnType<typeof findUserByPhone>> = null;
+      try {
+        existingRow = await findUserByPhone(phone);
+      } catch (lookupError) {
+        console.warn('[auth/login] Could not check returning-user sheet row:', lookupError);
+      }
+
       const token = jwt.sign({ userId: user.id, phone: user.phone }, JWT_SECRET, { expiresIn: '7d' });
       res.cookie('token', token, { httpOnly: true, secure: process.env.NODE_ENV === 'production', sameSite: 'lax' });
       
-      res.json({ success: true, user: { id: user.id, phone: user.phone } });
+      res.json({
+        success: true,
+        user: { id: user.id, phone: user.phone },
+        isReturningUser: Boolean(existingRow),
+        existingRow,
+      });
     } catch (error) {
       res.status(500).json({ error: 'Internal server error' });
     }
@@ -219,8 +231,8 @@ async function startServer() {
     }
 
     try {
-      await appendProfileToGoogleSheet(profile, body.chatPreferences);
-      return res.json({ ok: true, sheetsSkipped: false });
+      const { userType } = await appendProfileToGoogleSheet(profile, body.chatPreferences);
+      return res.json({ ok: true, sheetsSkipped: false, userType });
     } catch (err) {
       console.error('[sheets]', err);
       const message = err instanceof Error ? err.message : 'Failed to write to Google Sheet';

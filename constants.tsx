@@ -261,6 +261,19 @@ export const PROJECT_STATUS_OPTIONS = [
   'Completed'
 ];
 
+/** Align stored Sheet/local strings with canonical dropdown labels (trim + case-insensitive). */
+export function normalizeMilestoneStatus(
+  raw: string | undefined | null,
+  allowed: readonly string[]
+): string {
+  const s = String(raw ?? '').trim();
+  if (!s) return '';
+  if (allowed.includes(s)) return s;
+  const lower = s.toLowerCase();
+  const match = allowed.find((opt) => opt.toLowerCase() === lower);
+  return match ?? s;
+}
+
 export const REFLECTION_PROMPTS = [
   {
     key: 'impactPurpose' as const,

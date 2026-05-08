@@ -27,6 +27,8 @@ export interface JourneyHorizontalTrackerProps {
   editingSection: Section | null;
   currentSectionIndex: number;
   level1Complete: boolean;
+  /** When true, Reflections is not gated behind Level 1 completion (returning-user flow). */
+  isReturningSession?: boolean;
   onSelectStep: (sec: Section) => void;
   onReflectionLockedAttempt: () => void;
 }
@@ -37,6 +39,7 @@ const JourneyHorizontalTracker: React.FC<JourneyHorizontalTrackerProps> = ({
   editingSection,
   currentSectionIndex,
   level1Complete,
+  isReturningSession = false,
   onSelectStep,
   onReflectionLockedAttempt,
 }) => {
@@ -48,7 +51,8 @@ const JourneyHorizontalTracker: React.FC<JourneyHorizontalTrackerProps> = ({
             const isCompleted = completedMap[sec];
             const isActive = editingSection === sec;
             const isUnlocked = idx <= currentSectionIndex;
-            const isReflectionLocked = sec === Section.REFLECTIONS && !level1Complete;
+            const isReflectionLocked =
+              sec === Section.REFLECTIONS && !level1Complete && !isReturningSession;
             const isLocked = !isUnlocked || isReflectionLocked;
             const isFutureVisual = !isCompleted && !isActive;
 

@@ -1,7 +1,16 @@
 
 import React, { useState, useEffect, useRef } from 'react';
 import { Section, Profile, INITIAL_PROFILE, ChatPreferences, INITIAL_CHAT_PREFERENCES } from './types';
-import { REFLECTION_PROMPTS, SECTION_LEVELS, getExpertiseAnsweredCount, MIN_EXPERTISE_QUESTIONS } from './constants';
+import {
+  REFLECTION_PROMPTS,
+  SECTION_LEVELS,
+  getExpertiseAnsweredCount,
+  MIN_EXPERTISE_QUESTIONS,
+  PROJECT_STATUS_OPTIONS,
+  EXAM_STATUS_OPTIONS,
+  CERTIFICATION_STATUS_OPTIONS,
+  normalizeMilestoneStatus,
+} from './constants';
 import { useProfile } from './context/ProfileContext';
 import IdentityForm from './components/IdentityForm';
 import AcademicForm from './components/AcademicForm';
@@ -24,6 +33,14 @@ const STRICT_EMAIL_REGEX = /^[A-Za-z0-9._%+-]+@(gmail\.com|yahoo\.com|outlook\.c
 const LEVEL_1_SECTIONS: Section[] = [Section.BASIC, Section.ACADEMIC, Section.SKILLS, Section.MILESTONES];
 const LEVEL_2_SECTIONS: Section[] = [Section.REFLECTIONS, Section.REVIEW];
 const JOURNEY_STEPS: Section[] = [Section.BASIC, Section.ACADEMIC, Section.SKILLS, Section.MILESTONES, Section.REFLECTIONS];
+const ALL_MAIN_SECTIONS: Section[] = [
+  Section.BASIC,
+  Section.ACADEMIC,
+  Section.SKILLS,
+  Section.MILESTONES,
+  Section.REFLECTIONS,
+  Section.REVIEW,
+];
 
 const MILESTONE_EMOJIS: Record<string, string[]> = {
   [Section.BASIC]: ['👤', '✨', '👋', '✅'],
@@ -51,13 +68,14 @@ const mergeProfileWithDefaults = (data: any): Profile => {
     toolSkills: Array.isArray(data.toolSkills) ? data.toolSkills : [],
     aiSkills: Array.isArray(data.aiSkills) ? data.aiSkills : [],
     professionalSkills: Array.isArray(data.professionalSkills) ? data.professionalSkills : [],
-        projects: Array.isArray(data.projects) 
+        projects: Array.isArray(data.projects)
       ? data.projects.map((p: any) => {
-          if (typeof p === 'string') return { name: p, details: '', isSaved: true };
+          if (typeof p === 'string') return { name: p, status: '', details: '', isSaved: true };
           return {
             name: p.name || '',
+            status: normalizeMilestoneStatus(p.status, PROJECT_STATUS_OPTIONS),
             details: p.details || '',
-            isSaved: typeof p.isSaved === 'boolean' ? p.isSaved : true
+            isSaved: typeof p.isSaved === 'boolean' ? p.isSaved : true,
           };
         })
       : [],
@@ -66,7 +84,7 @@ const mergeProfileWithDefaults = (data: any): Profile => {
           if (typeof e === 'string') return { name: e, status: '', details: '' };
           return {
             name: e.name || '',
-            status: e.status || '',
+            status: normalizeMilestoneStatus(e.status, EXAM_STATUS_OPTIONS),
             details: e.details || '',
             customName: e.customName || ''
           };
@@ -75,7 +93,7 @@ const mergeProfileWithDefaults = (data: any): Profile => {
     certifications: Array.isArray(data.certifications)
       ? data.certifications.map((c: any) => ({
           name: c.name || '',
-          status: c.status || '',
+          status: normalizeMilestoneStatus(c.status, CERTIFICATION_STATUS_OPTIONS),
           details: c.details || '',
           customName: c.customName || ''
         }))
@@ -110,6 +128,7 @@ const App: React.FC = () => {
   const [avatarGrowthToast, setAvatarGrowthToast] = useState<string | null>(null);
   const [currentSectionIndex, setCurrentSectionIndex] = useState(0);
   const [resumeSectionEdit, setResumeSectionEdit] = useState<Section | null>(null);
+  const [isReturningSession, setIsReturningSession] = useState(false);
   
   const sectionRefs = useRef<Record<string, HTMLDivElement | null>>({});
   const previousUnlockedCountRef = useRef(1);
@@ -400,6 +419,32 @@ const App: React.FC = () => {
     }
     setIsStarted(true);
     window.scrollTo(0, 0);
+  };
+
+  const hydrateProfileData = (existingRow: unknown): boolean => {
+    if (!existingRow || typeof existingRow !== 'object') return false;
+    const row = existingRow as { profile?: unknown; chatPreferences?: unknown };
+    if (!row.profile || typeof row.profile !== 'object') return false;
+
+    const merged = mergeProfileWithDefaults(row.profile);
+    setProfile(merged);
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(merged));
+
+    const chatPrefs =
+      row.chatPreferences && typeof row.chatPreferences === 'object'
+        ? ({ ...INITIAL_CHAT_PREFERENCES, ...row.chatPreferences } as ChatPreferences)
+        : INITIAL_CHAT_PREFERENCES;
+    setChatPreferences(chatPrefs);
+    localStorage.setItem(CHAT_PREFS_KEY, JSON.stringify(chatPrefs));
+
+    const filledSections = Object.values(Section).filter((s) => s !== Section.REVIEW && isSectionFilled(s, merged));
+    setSavedSections(filledSections);
+    setVisibleSections(ALL_MAIN_SECTIONS);
+    setEditingSection(Section.REVIEW);
+    setCurrentSectionIndex(JOURNEY_STEPS.length - 1);
+    setIsStarted(true);
+    window.scrollTo(0, 0);
+    return true;
   };
 
   const triggerMilestoneCelebration = (section: Section) => {
@@ -747,7 +792,7 @@ const App: React.FC = () => {
     const idx = JOURNEY_STEPS.indexOf(fromSection);
     if (idx <= 0) return;
     const prev = JOURNEY_STEPS[idx - 1];
-    if (prev === Section.REFLECTIONS && !level1Complete) {
+    if (prev === Section.REFLECTIONS && !level1Complete && !isReturningSession) {
       setSkipMessage('Please complete all required Level 1 sections to unlock Reflections.');
       setTimeout(() => setSkipMessage(null), 3200);
       return;
@@ -763,7 +808,7 @@ const App: React.FC = () => {
     const idx = JOURNEY_STEPS.indexOf(fromSection);
     if (idx < 0 || idx >= JOURNEY_STEPS.length - 1) return;
     const next = JOURNEY_STEPS[idx + 1];
-    if (next === Section.REFLECTIONS && !level1Complete) {
+    if (next === Section.REFLECTIONS && !level1Complete && !isReturningSession) {
       setSkipMessage('Please complete all required Level 1 sections to unlock Reflections.');
       setTimeout(() => setSkipMessage(null), 3200);
       return;
@@ -920,11 +965,19 @@ const App: React.FC = () => {
   }
 
   if (!isAuthenticated) {
-    return <Auth onLogin={(u) => { 
-      setUser(u); 
+    return <Auth onLogin={(payload) => { 
+      setUser(payload.user); 
       setIsAuthenticated(true); 
-      
-      // Auto-start after login
+      setIsReturningSession(Boolean(payload.isReturningUser));
+
+      if (payload.isReturningUser) {
+        const hydrated = hydrateProfileData(payload.existingRow);
+        if (hydrated) {
+          return;
+        }
+      }
+
+      // New-user path remains unchanged.
       const saved = localStorage.getItem(STORAGE_KEY);
       if (saved) {
         try {
@@ -1039,7 +1092,14 @@ const App: React.FC = () => {
         <AnimatePresence mode="popLayout">
           {[
             { key: 'level1', title: '🟢 Foundation Mode', sections: LEVEL_1_SECTIONS, progress: level1Progress, locked: false },
-            { key: 'level2', title: '🔵 Power-Up Mode', sections: LEVEL_2_SECTIONS, progress: level2Progress, locked: !level1Complete },
+            {
+              key: 'level2',
+              title: '🔵 Power-Up Mode',
+              sections: LEVEL_2_SECTIONS,
+              progress: level2Progress,
+              // Returning users should be able to land directly on Review after login.
+              locked: !level1Complete && !isReturningSession,
+            },
           ].map((levelGroup) => (
             <div key={levelGroup.key} className="space-y-8">
               {levelGroup.locked ? null : levelGroup.sections.map((section, index) => {
@@ -1074,6 +1134,7 @@ const App: React.FC = () => {
                   <ReviewPage
                     profile={profile}
                     completeness={completeness}
+                    isReturningUser={isReturningSession}
                     chatPreferences={chatPreferences}
                     setChatPreferences={setChatPreferences}
                     updateProfile={updateProfile}
@@ -1094,7 +1155,25 @@ const App: React.FC = () => {
                     <div className="mt-6 flex justify-end">
                       <button
                         type="button"
-                        onClick={() => goToNextJourneySection(section)}
+                        onClick={() => {
+                          if (isReturningSession) {
+                            if (!visibleSections.includes(Section.REVIEW)) {
+                              setVisibleSections((v) => [...v, Section.REVIEW]);
+                            }
+                            setResumeSectionEdit(null);
+                            setEditingSection(Section.REVIEW);
+                            setValidationErrors(null);
+                            setCurrentSectionIndex(JOURNEY_STEPS.length - 1);
+                            requestAnimationFrame(() => {
+                              sectionRefs.current[Section.REVIEW]?.scrollIntoView({
+                                behavior: 'smooth',
+                                block: 'start',
+                              });
+                            });
+                            return;
+                          }
+                          goToNextJourneySection(section);
+                        }}
                         className="px-5 py-2.5 rounded-full bg-[#2c4869] text-white text-xs font-bold uppercase tracking-wider hover:bg-[#2c4869]/90 transition-colors"
                       >
                         Go to Next Section
@@ -1187,6 +1266,7 @@ const App: React.FC = () => {
                     editingSection={editingSection}
                     currentSectionIndex={currentSectionIndex}
                     level1Complete={level1Complete}
+                    isReturningSession={isReturningSession}
                     onReflectionLockedAttempt={() => {
                       setSkipMessage('Please complete all required Level 1 sections to unlock Reflections.');
                       setTimeout(() => setSkipMessage(null), 3200);

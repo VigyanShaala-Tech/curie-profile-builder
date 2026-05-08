@@ -14,6 +14,7 @@ import {
   PROJECT_STATUS_OPTIONS,
   normalizeMilestoneStatus,
 } from './constants';
+import { normalizePhone } from './phone';
 
 /** Same TTL as Apps Script `CacheService` example (6 hours). */
 const CACHE_TTL_MS = 21600 * 1000;
@@ -108,10 +109,6 @@ function getColumnIndexByName(headers: string[], columnName: string): number {
   return headers.findIndex((cell) => normalizeHeaderKey(String(cell)) === target);
 }
 
-function normalizePhoneDigits(value: string): string {
-  return String(value ?? '').replace(/\D/g, '');
-}
-
 function parseJsonObject(raw: string | undefined): Record<string, unknown> {
   if (!raw || !raw.trim()) return {};
   try {
@@ -172,7 +169,7 @@ function buildHydratedDataFromSheetRow(rowMap: Record<string, string>): {
     fullName: `${asString(profileJson.first_name)} ${asString(profileJson.last_name)}`.trim(),
     gender: asString(profileJson.gender),
     email: asString(profileJson.email || identityJson.email),
-    whatsappNumber: asString(rowMap.key),
+    whatsappNumber: normalizePhone(asString(rowMap.key)),
     location,
     academicStatus: parseAcademicStatus(profileJson.academic_status || academicsJson.academic_status),
     degreeType: asString(profileJson.degree || academicsJson.degree),
@@ -256,7 +253,7 @@ function buildPhoneCacheFromKeyColumn(values: string[][]): PhoneIndexPayload {
   const phones: Record<string, true> = {};
   const rowByPhone: Record<string, number> = {};
   for (let i = 0; i < values.length; i++) {
-    const phone = normalizePhoneDigits(String(values[i]?.[0] ?? ''));
+    const phone = normalizePhone(String(values[i]?.[0] ?? ''));
     if (!phone) continue;
     phones[phone] = true;
     if (rowByPhone[phone] === undefined) {
@@ -337,7 +334,7 @@ export async function appendProfileToGoogleSheet(
 
   const whatsappRaw = (profile.whatsappNumber || '').trim();
   if (!whatsappRaw) throw new Error('whatsappNumber is required for upsert.');
-  const normalizedPhoneKey = normalizePhoneDigits(whatsappRaw);
+  const normalizedPhoneKey = normalizePhone(whatsappRaw);
 
   const sheets = getSheetsClient();
   const headerRange = `${tabName}!1:1`;
@@ -526,7 +523,7 @@ export async function findUserByPhone(phone: string): Promise<ExistingUserLookup
   );
   if (!hasCredentials) return null;
 
-  const normalizedPhoneKey = normalizePhoneDigits(phone);
+  const normalizedPhoneKey = normalizePhone(phone);
   if (!normalizedPhoneKey) return null;
 
   const tabName = 'Sheet3';

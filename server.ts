@@ -11,6 +11,7 @@ import cookieParser from 'cookie-parser';
 import type { ChatPreferences, Profile } from './types';
 import type { NextFunction, Request, Response } from 'express';
 import { appendProfileToGoogleSheet, findUserByPhone } from './googleSheets';
+import { normalizePhone } from './phone';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const JWT_SECRET = process.env.JWT_SECRET || 'super-secret-key-for-dev';
@@ -137,19 +138,24 @@ async function startServer() {
   // Register
   app.post('/api/auth/register', async (req, res) => {
     const { phone, password } = req.body;
-    if (!phone || !password) {
+    const normalizedPhone = normalizePhone(phone);
+    if (!normalizedPhone || !password) {
       return res.status(400).json({ error: 'Phone and password are required' });
     }
 
     try {
       const hashedPassword = await bcrypt.hash(password, 10);
       const stmt = db.prepare('INSERT INTO users (phone, password) VALUES (?, ?)');
-      const info = stmt.run(phone, hashedPassword);
+      const info = stmt.run(normalizedPhone, hashedPassword);
       
-      const token = jwt.sign({ userId: info.lastInsertRowid, phone }, JWT_SECRET, { expiresIn: '7d' });
+      const token = jwt.sign(
+        { userId: info.lastInsertRowid, phone: normalizedPhone },
+        JWT_SECRET,
+        { expiresIn: '7d' }
+      );
       res.cookie('token', token, { httpOnly: true, secure: process.env.NODE_ENV === 'production', sameSite: 'lax' });
       
-      res.json({ success: true, user: { id: info.lastInsertRowid, phone } });
+      res.json({ success: true, user: { id: info.lastInsertRowid, phone: normalizedPhone } });
     } catch (error: any) {
       if (error.code === 'SQLITE_CONSTRAINT_UNIQUE') {
         return res.status(400).json({ error: 'Phone number already registered' });
@@ -161,13 +167,14 @@ async function startServer() {
   // Login
   app.post('/api/auth/login', async (req, res) => {
     const { phone, password } = req.body;
-    if (!phone || !password) {
+    const normalizedPhone = normalizePhone(phone);
+    if (!normalizedPhone || !password) {
       return res.status(400).json({ error: 'Phone and password are required' });
     }
 
     try {
       const stmt = db.prepare('SELECT * FROM users WHERE phone = ?');
-      const user = stmt.get(phone) as any;
+      const user = stmt.get(normalizedPhone) as any;
 
       if (!user) {
         return res.status(401).json({ error: 'Invalid phone number or password' });
@@ -180,7 +187,7 @@ async function startServer() {
 
       let existingRow: Awaited<ReturnType<typeof findUserByPhone>> = null;
       try {
-        existingRow = await findUserByPhone(phone);
+        existingRow = await findUserByPhone(normalizedPhone);
       } catch (lookupError) {
         console.warn('[auth/login] Could not check returning-user sheet row:', lookupError);
       }

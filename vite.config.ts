@@ -8,6 +8,8 @@ export default defineConfig(({ mode }) => {
       server: {
         port: 3000,
         host: '0.0.0.0',
+        // Avoid colliding with another Vite/middleware instance on default WS port (24678).
+        hmr: { port: 24688 },
       },
       plugins: [react()],
       define: {

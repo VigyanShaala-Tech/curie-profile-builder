@@ -4,10 +4,11 @@ import { AnimatePresence } from 'motion/react';
 import { Pencil, FolderGit2, Award, BookOpen } from 'lucide-react';
 import { TypeformSlide, TypeformNav, TypeformToggleGroup, typeformInputClass, typeformLabelClass, formFieldErrorClass } from './TypeformSlide';
 import { Profile, MilestoneDetail, ProjectDetail } from '../types';
-import { 
+import {
   EXAM_STATUS_OPTIONS,
   CERTIFICATION_STATUS_OPTIONS,
-  PROJECT_STATUS_OPTIONS
+  PROJECT_STATUS_OPTIONS,
+  normalizeMilestoneStatus,
 } from '../constants';
 
 interface Props {
@@ -307,7 +308,17 @@ const MilestoneForm: React.FC<Props> = ({
       if (msStep === 2) {
         setAttemptedNext(true);
         const e = getDraftEntry();
-        if (!e || !(e.data as MilestoneDetail).status) return;
+        const statusOpts =
+          e?.type === 'project'
+            ? PROJECT_STATUS_OPTIONS
+            : e?.type === 'certification'
+              ? CERTIFICATION_STATUS_OPTIONS
+              : EXAM_STATUS_OPTIONS;
+        if (
+          !e ||
+          !normalizeMilestoneStatus((e.data as MilestoneDetail).status, statusOpts)
+        )
+          return;
         setAttemptedNext(false);
         setMsStep(3);
         return;
@@ -534,7 +545,7 @@ const MilestoneForm: React.FC<Props> = ({
                 Status for “{entry.data.name.trim() || 'this entry'}” <span className="text-red-500">*</span>
               </label>
               <TypeformToggleGroup
-                value={(entry.data as MilestoneDetail).status || ''}
+                value={normalizeMilestoneStatus((entry.data as MilestoneDetail).status, statusOptions)}
                 onSelect={(value) => {
                   updateDraft({ status: value });
                   setAttemptedNext(false);
@@ -542,7 +553,8 @@ const MilestoneForm: React.FC<Props> = ({
                 }}
                 options={statusOptions.map((opt) => ({ label: opt, value: opt }))}
               />
-              {attemptedNext && !(entry.data as MilestoneDetail).status && (
+              {attemptedNext &&
+                !normalizeMilestoneStatus((entry.data as MilestoneDetail).status, statusOptions) && (
                 <p className={formFieldErrorClass}>Please select a status</p>
               )}
               <TypeformNav
@@ -550,7 +562,9 @@ const MilestoneForm: React.FC<Props> = ({
                 onBack={goBackMs}
                 onNext={goNextMs}
                 hideNext={!(typeformResumeEdit || milestoneStatusShowNext)}
-                nextDisabled={!(entry.data as MilestoneDetail).status}
+                nextDisabled={
+                  !normalizeMilestoneStatus((entry.data as MilestoneDetail).status, statusOptions)
+                }
               />
             </TypeformSlide>
           )}
@@ -661,7 +675,8 @@ const MilestoneForm: React.FC<Props> = ({
 
                 const isSaved = data.isSaved;
                 const name = data.name || '';
-                const status = (data as any).status || '';
+                const statusRaw = (data as any).status || '';
+                const status = normalizeMilestoneStatus(statusRaw, statusOptions);
                 const details = data.details || '';
 
                 const handleUpdate = (updates: any) => {

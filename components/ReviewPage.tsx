@@ -9,6 +9,7 @@ import { motion, AnimatePresence } from 'motion/react';
 interface Props {
   profile: Profile;
   completeness: number;
+  isReturningUser?: boolean;
   setCurrentSection: (s: Section) => void;
   chatPreferences: ChatPreferences;
   setChatPreferences: (prefs: ChatPreferences) => void;
@@ -18,7 +19,15 @@ interface Props {
 const VIGYAN_SHAALA_LOGO = '/images/log.png';
 const STORAGE_KEY = 'vs_reflection_profile';
 
-const ReviewPage: React.FC<Props> = ({ profile, completeness, setCurrentSection, chatPreferences, setChatPreferences, updateProfile }) => {
+const ReviewPage: React.FC<Props> = ({
+  profile,
+  completeness,
+  isReturningUser = false,
+  setCurrentSection,
+  chatPreferences,
+  setChatPreferences,
+  updateProfile,
+}) => {
   const isOutOfSync = useMemo(() => {
     if (!profile.lastSyncedAt || !profile.lastUpdatedAt) return true;
     return new Date(profile.lastUpdatedAt) > new Date(profile.lastSyncedAt);
@@ -31,6 +40,9 @@ const ReviewPage: React.FC<Props> = ({ profile, completeness, setCurrentSection,
   const [showPreferencePrompt, setShowPreferencePrompt] = useState(false);
   const [showSyncSuccessModal, setShowSyncSuccessModal] = useState(false);
   const [pendingSection, setPendingSection] = useState<Section | null>(null);
+  const [syncUserType, setSyncUserType] = useState<'new' | 'returning'>(
+    profile.lastSyncedAt ? 'returning' : 'new'
+  );
 
   // Update success state if sync status changes
   React.useEffect(() => {
@@ -189,11 +201,31 @@ const ReviewPage: React.FC<Props> = ({ profile, completeness, setCurrentSection,
           chatPreferences,
         }),
       });
-      const data = (await res.json().catch(() => ({}))) as { error?: string; ok?: boolean };
+      const data = (await res.json().catch(() => ({}))) as {
+        error?: string;
+        ok?: boolean;
+        userType?: string;
+        sheetsSkipped?: boolean;
+      };
 
       if (!res.ok) {
         throw new Error(data.error || `Sync failed (${res.status})`);
       }
+
+      if (data.sheetsSkipped) {
+        throw new Error(
+          'Google Sheets sync was skipped. Please verify server env and restart the backend.'
+        );
+      }
+
+      const apiUserType =
+        data.userType === 'new' || data.userType === 'returning' ? data.userType : null;
+      if (!apiUserType) {
+        throw new Error(
+          'Sync completed but user classification was not returned. Please restart backend and try again.'
+        );
+      }
+      setSyncUserType(apiUserType);
 
       updateProfile({ lastSyncedAt: now });
       localStorage.setItem(STORAGE_KEY, JSON.stringify({ ...profile, lastSyncedAt: now }));
@@ -217,6 +249,14 @@ const ReviewPage: React.FC<Props> = ({ profile, completeness, setCurrentSection,
     }
   };
 
+  const handleRedirect = () => {
+    const url =
+      syncUserType === 'new'
+        ? 'https://wa.me/919403509920?text=redirectnewprofile'
+        : 'https://wa.me/919403509920?text=redirectupdatedprofile';
+    window.location.href = url;
+  };
+
   const InfoBlock = ({ label, value, section }: { label: string, value: string | string[], section: Section }) => (
     <div 
       onClick={() => setPendingSection(section)}
@@ -232,7 +272,7 @@ const ReviewPage: React.FC<Props> = ({ profile, completeness, setCurrentSection,
       <div className="text-[#2c4869] text-sm font-black break-words leading-relaxed">
         {Array.isArray(value) 
           ? (value.length > 0 ? value.join(', ') : <span className="text-slate-300 italic text-xs font-medium">Not specified</span>) 
-          : (value || <span className="text-slate-300 italic text-xs font-medium">Not specified</span>)}
+          : ((value ?? '') || <span className="text-slate-300 italic text-xs font-medium">Not specified</span>)}
       </div>
     </div>
   );
@@ -253,6 +293,14 @@ const ReviewPage: React.FC<Props> = ({ profile, completeness, setCurrentSection,
 
   return (
     <div className="space-y-8 animate-in zoom-in-95 duration-500 pb-20">
+      {isReturningUser && (
+        <div className="bg-[#2c4869] text-white rounded-2xl px-5 py-4 shadow-lg">
+          <p className="text-sm font-black">Welcome back! Your saved profile has been loaded.</p>
+          <p className="text-xs font-medium text-white/85 mt-1">
+            Review or edit your information below.
+          </p>
+        </div>
+      )}
       <div className="bg-white p-6 sm:p-10 rounded-3xl border border-slate-200 shadow-2xl overflow-hidden relative print:shadow-none print:border-none print:p-0">
         <div className="absolute top-0 right-0 p-6 sm:p-10 flex flex-col items-end gap-3 print:static print:flex-row print:justify-between print:w-full print:p-0 print:mb-8">
            <img 
@@ -278,7 +326,7 @@ const ReviewPage: React.FC<Props> = ({ profile, completeness, setCurrentSection,
         </section>
 
         <section className="mb-10">
-          <h3 className="text-xs font-black text-[#ffcd29] mb-6 border-b border-[#ffcd29]/10 pb-2 uppercase tracking-widest">Skills & Expertise</h3>
+          <h3 className="text-xs font-black text-[#f58434] mb-6 border-b border-[#f58434]/10 pb-2 uppercase tracking-widest">Skills & Expertise</h3>
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-8">
             <InfoBlock label="Subject Expertise" value={profile.subjectSkills} section={Section.SKILLS} />
             <InfoBlock label="Technical Tools & IT" value={profile.toolSkills} section={Section.SKILLS} />
@@ -288,7 +336,7 @@ const ReviewPage: React.FC<Props> = ({ profile, completeness, setCurrentSection,
         </section>
 
         <section className="mb-10">
-          <h3 className="text-xs font-black text-[#2c4869] mb-6 border-b border-[#2c4869]/10 pb-2 uppercase tracking-widest">Achievements & Milestones</h3>
+          <h3 className="text-xs font-black text-[#f58434] mb-6 border-b border-[#f58434]/10 pb-2 uppercase tracking-widest">Achievements & Milestones</h3>
           <div className="space-y-2">
             <InfoBlock 
               label="Projects" 
@@ -620,15 +668,17 @@ const ReviewPage: React.FC<Props> = ({ profile, completeness, setCurrentSection,
               exit={{ opacity: 0, scale: 0.92, y: 16 }}
               className="bg-white rounded-[32px] p-8 max-w-lg w-full shadow-2xl border border-slate-100"
             >
-              <h3 className="text-2xl font-black text-[#2c4869] tracking-tight mb-4">Profile Synced Successfully 🎉</h3>
-              <p className="text-sm font-medium text-[#2c4869]/80 leading-relaxed mb-8">
-                Your progress has been saved and updated.
+              <h3 className="text-2xl font-black text-[#2c4869] tracking-tight mb-4">
+                Profile has been submitted successfully 🎉
+              </h3>
+              <p className="text-sm font-medium text-[#2c4869]/60 leading-relaxed mb-8">
+                Continue on WhatsApp to complete your journey with our chatbot.
               </p>
               <button
-                onClick={() => setShowSyncSuccessModal(false)}
-                className="w-full py-4 rounded-2xl bg-[#2c4869] text-white font-black uppercase tracking-widest text-xs hover:bg-[#2c4869]/90 transition-all active:scale-[0.98]"
+                onClick={handleRedirect}
+                className="w-full py-4 rounded-2xl bg-[#2c4869] text-white font-black uppercase tracking-widest text-xs hover:bg-[#2c4869]/90 transition-all active:scale-[0.98] text-center"
               >
-                Continue
+                Continue to Chat on WhatsApp
               </button>
             </motion.div>
           </div>

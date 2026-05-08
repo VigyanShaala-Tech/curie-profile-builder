@@ -5,7 +5,11 @@ import { getCountryCallingCode } from 'libphonenumber-js';
 import type { CountryCode } from 'libphonenumber-js';
 
 interface AuthProps {
-  onLogin: (user: any) => void;
+  onLogin: (payload: {
+    user: any;
+    isReturningUser?: boolean;
+    existingRow?: unknown;
+  }) => void;
 }
 
 type LoginStep = 0 | 1;
@@ -253,7 +257,11 @@ export const Auth: React.FC<AuthProps> = ({ onLogin }) => {
       if (!res.ok) throw new Error(apiErrorMessage(data, 'Authentication failed'));
       const user = data.user;
       if (!user) throw new Error('Authentication failed');
-      onLogin(user);
+      onLogin({
+        user,
+        isReturningUser: Boolean(data.isReturningUser),
+        existingRow: data.existingRow,
+      });
     } catch (err: any) {
       setError(err.message);
     } finally {

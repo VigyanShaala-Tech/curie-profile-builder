@@ -1,4 +1,5 @@
 import type { ChatPreferences, Profile } from './types';
+import { normalizePhone } from './phone';
 
 /**
  * Required/analytics-ready schema for Google Sheets rows.
@@ -59,7 +60,7 @@ function profileToSheetsRowObject(
   userType?: SheetUserType
 ): Record<string, string> {
   const { first, last } = splitFirstLast(profile.fullName);
-  const key = normalizeString(profile.whatsappNumber).trim();
+  const key = normalizePhone(profile.whatsappNumber);
   const current_location = parseLocation(profile.location);
 
   const subjectArea =

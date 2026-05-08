@@ -3,6 +3,7 @@ import { motion, AnimatePresence } from 'motion/react';
 import { Lock, ArrowRight, Loader2, KeyRound } from 'lucide-react';
 import { getCountryCallingCode } from 'libphonenumber-js';
 import type { CountryCode } from 'libphonenumber-js';
+import { normalizePhone } from '../phone';
 
 interface AuthProps {
   onLogin: (payload: {
@@ -185,6 +186,7 @@ export const Auth: React.FC<AuthProps> = ({ onLogin }) => {
   const newPassRef = useRef<HTMLInputElement>(null);
 
   const fullPhoneE164 = useMemo(() => buildE164(countryIso, nationalNumber), [countryIso, nationalNumber]);
+  const normalizedPhone = useMemo(() => normalizePhone(fullPhoneE164), [fullPhoneE164]);
 
   const headerTitle =
     authPhase === 'welcome'
@@ -251,7 +253,7 @@ export const Auth: React.FC<AuthProps> = ({ onLogin }) => {
       const res = await fetch(endpoint, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ phone: fullPhoneE164, password }),
+        body: JSON.stringify({ phone: normalizedPhone, password }),
       });
       const data = await readJsonBody(res);
       if (!res.ok) throw new Error(apiErrorMessage(data, 'Authentication failed'));
@@ -293,7 +295,7 @@ export const Auth: React.FC<AuthProps> = ({ onLogin }) => {
       const res = await fetch('/api/auth/request-password-reset', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ phone: fullPhoneE164 }),
+        body: JSON.stringify({ phone: normalizedPhone }),
       });
       const data = await readJsonBody(res);
       if (!res.ok) throw new Error(apiErrorMessage(data, 'Could not send OTP'));
@@ -328,7 +330,7 @@ export const Auth: React.FC<AuthProps> = ({ onLogin }) => {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          phone: fullPhoneE164,
+          phone: normalizedPhone,
           otp: otpCells.join(''),
           newPassword,
         }),

@@ -1,8 +1,8 @@
 import fs from 'fs';
 import path from 'path';
 import { google } from 'googleapis';
-import { INITIAL_CHAT_PREFERENCES, INITIAL_PROFILE } from './types';
-import type { ChatPreferences, Profile } from './types';
+import { INITIAL_PROFILE } from './types';
+import type { Profile } from './types';
 import {
   SHEET_COLUMN_HEADERS,
   profileToSheetsRowObject,
@@ -147,10 +147,8 @@ function parseAcademicStatus(value: unknown): 'studying' | 'graduated' | '' {
 
 function buildHydratedDataFromSheetRow(rowMap: Record<string, string>): {
   profile: Profile;
-  chatPreferences: ChatPreferences;
 } {
   const profileJson = parseJsonObject(rowMap.profile);
-  const chatJson = parseJsonObject(rowMap.chat_settings);
   const identityJson = parseJsonObject(rowMap.identity);
   const academicsJson = parseJsonObject(rowMap.academics);
   const reflectionsJson = parseJsonObject(rowMap.reflections);
@@ -211,20 +209,7 @@ function buildHydratedDataFromSheetRow(rowMap: Record<string, string>): {
     lastSyncedAt: undefined,
   };
 
-  const responseLength = asString((chatJson.response_length ?? profileJson.response_length) as unknown);
-  const responseFormat = asString((chatJson.response_format ?? profileJson.response_format) as unknown);
-  const chatPreferences: ChatPreferences = {
-    ...INITIAL_CHAT_PREFERENCES,
-    responseLength:
-      responseLength === 'short' || responseLength === 'short-examples' || responseLength === 'detailed'
-        ? responseLength
-        : '',
-    responseFormat: responseFormat === 'bullets' || responseFormat === 'paragraphs' || responseFormat === 'mix'
-      ? responseFormat
-      : '',
-  };
-
-  return { profile, chatPreferences };
+  return { profile };
 }
 
 function getPhoneCache(spreadsheetId: string, tabName: string): PhoneIndexPayload | null {
@@ -321,8 +306,7 @@ function parseTopRowFromUpdatedRange(range: string | null | undefined): number |
  * - Adds / fills `user_type` as `new` | `returning` based on Sheet3 presence before write.
  */
 export async function appendProfileToGoogleSheet(
-  profile: Profile,
-  chatPreferences: ChatPreferences | undefined
+  profile: Profile
 ): Promise<{ userType: SheetUserType }> {
   const spreadsheetId = process.env.GOOGLE_SHEETS_SPREADSHEET_ID?.trim();
   if (!spreadsheetId) {
@@ -417,7 +401,7 @@ export async function appendProfileToGoogleSheet(
   }
 
   const userType: SheetUserType = isReturning ? 'returning' : 'new';
-  const rowMap = profileToSheetsRowObject(profile, chatPreferences, exportedAt, userType);
+  const rowMap = profileToSheetsRowObject(profile, exportedAt, userType);
   const row = rowValuesAlignedToSheetHeaders(existingHeaders, rowMap);
 
   function normalizeRowValue(v: string): string {
@@ -433,7 +417,6 @@ export async function appendProfileToGoogleSheet(
     skills_interests: rowMap.skills_interests ?? '',
     milestones: rowMap.milestones ?? '',
     reflections: rowMap.reflections ?? '',
-    chat_settings: rowMap.chat_settings ?? '',
     profile: rowMap.profile ?? '',
     user_type: rowMap.user_type ?? '',
   };
@@ -444,7 +427,6 @@ export async function appendProfileToGoogleSheet(
     'skills_interests',
     'milestones',
     'reflections',
-    'chat_settings',
     'profile',
   ] as const;
 
@@ -508,7 +490,6 @@ export async function appendProfileToGoogleSheet(
 export interface ExistingUserLookupResult {
   rowNumber: number;
   profile: Profile;
-  chatPreferences: ChatPreferences;
 }
 
 export async function findUserByPhone(phone: string): Promise<ExistingUserLookupResult | null> {
@@ -562,6 +543,6 @@ export async function findUserByPhone(phone: string): Promise<ExistingUserLookup
     return acc;
   }, {});
 
-  const { profile, chatPreferences } = buildHydratedDataFromSheetRow(rowMap);
-  return { rowNumber, profile, chatPreferences };
+  const { profile } = buildHydratedDataFromSheetRow(rowMap);
+  return { rowNumber, profile };
 }

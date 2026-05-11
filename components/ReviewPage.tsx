@@ -1,18 +1,17 @@
 
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useRef, useCallback } from 'react';
 import { Pencil } from 'lucide-react';
-import { Profile, Section, ChatPreferences } from '../types';
+import { Profile, Section } from '../types';
 import { REFLECTION_PROMPTS } from '../constants';
-import ChatSettings from './ChatSettings';
 import { motion, AnimatePresence } from 'motion/react';
+import html2canvas from 'html2canvas';
+import { jsPDF } from 'jspdf';
 
 interface Props {
   profile: Profile;
   completeness: number;
   isReturningUser?: boolean;
   setCurrentSection: (s: Section) => void;
-  chatPreferences: ChatPreferences;
-  setChatPreferences: (prefs: ChatPreferences) => void;
   updateProfile: (updates: Partial<Profile>) => void;
 }
 
@@ -24,8 +23,6 @@ const ReviewPage: React.FC<Props> = ({
   completeness,
   isReturningUser = false,
   setCurrentSection,
-  chatPreferences,
-  setChatPreferences,
   updateProfile,
 }) => {
   const isOutOfSync = useMemo(() => {
@@ -37,12 +34,14 @@ const ReviewPage: React.FC<Props> = ({
   const [isUpdatingCurie, setIsUpdatingCurie] = useState(false);
   const [syncError, setSyncError] = useState<string | null>(null);
   const [curieSuccess, setCurieSuccess] = useState(profile.lastSyncedAt && !isOutOfSync ? true : false);
-  const [showPreferencePrompt, setShowPreferencePrompt] = useState(false);
   const [showSyncSuccessModal, setShowSyncSuccessModal] = useState(false);
   const [pendingSection, setPendingSection] = useState<Section | null>(null);
   const [syncUserType, setSyncUserType] = useState<'new' | 'returning'>(
     profile.lastSyncedAt ? 'returning' : 'new'
   );
+  const [showPreSyncModal, setShowPreSyncModal] = useState(false);
+  const [isGeneratingPdf, setIsGeneratingPdf] = useState(false);
+  const reviewCardRef = useRef<HTMLDivElement>(null);
 
   // Update success state if sync status changes
   React.useEffect(() => {
@@ -177,15 +176,15 @@ const ReviewPage: React.FC<Props> = ({
   };
 
   const handleUpdateCurie = () => {
-    if (!chatPreferences.responseLength || !chatPreferences.responseFormat) {
-      setShowPreferencePrompt(true);
-      return;
-    }
+    setShowPreSyncModal(true);
+  };
+
+  const confirmAndSync = () => {
+    setShowPreSyncModal(false);
     executeSync();
   };
 
   const executeSync = async () => {
-    setShowPreferencePrompt(false);
     setSyncError(null);
     const now = new Date().toISOString();
     setIsUpdatingCurie(true);
@@ -198,7 +197,6 @@ const ReviewPage: React.FC<Props> = ({
         credentials: 'include',
         body: JSON.stringify({
           profile: { ...profile, lastSyncedAt: now },
-          chatPreferences,
         }),
       });
       const data = (await res.json().catch(() => ({}))) as {
@@ -239,41 +237,111 @@ const ReviewPage: React.FC<Props> = ({
     }
   };
 
+  const generateAndDownloadPdf = useCallback(async () => {
+    const el = reviewCardRef.current;
+    if (!el) return;
+    setIsGeneratingPdf(true);
+    try {
+      const noPrintEls = el.querySelectorAll<HTMLElement>('.no-print');
+      noPrintEls.forEach((node) => (node.style.display = 'none'));
+
+      const canvas = await html2canvas(el, {
+        scale: 2,
+        useCORS: true,
+        backgroundColor: '#ffffff',
+        logging: false,
+      });
+
+      noPrintEls.forEach((node) => (node.style.display = ''));
+
+      const imgWidth = 210;
+      const pageHeight = 297;
+      const margin = 10;
+      const contentWidth = imgWidth - margin * 2;
+      const imgHeight = (canvas.height * contentWidth) / canvas.width;
+
+      const pdf = new jsPDF('p', 'mm', 'a4');
+      let y = margin;
+      let remaining = imgHeight;
+
+      while (remaining > 0) {
+        if (y !== margin) pdf.addPage();
+        const usable = pageHeight - margin * 2;
+        const sourceY = ((imgHeight - remaining) / imgHeight) * canvas.height;
+        const sliceH = Math.min(usable, remaining);
+        const sourceSliceH = (sliceH / imgHeight) * canvas.height;
+
+        const sliceCanvas = document.createElement('canvas');
+        sliceCanvas.width = canvas.width;
+        sliceCanvas.height = sourceSliceH;
+        const ctx = sliceCanvas.getContext('2d');
+        if (ctx) {
+          ctx.drawImage(canvas, 0, sourceY, canvas.width, sourceSliceH, 0, 0, canvas.width, sourceSliceH);
+        }
+        const sliceData = sliceCanvas.toDataURL('image/png');
+        pdf.addImage(sliceData, 'PNG', margin, margin, contentWidth, sliceH);
+        remaining -= usable;
+        y = margin;
+      }
+
+      const name = (profile.fullName || 'profile').replace(/\s+/g, '_');
+      pdf.save(`${name}_STEM_Profile.pdf`);
+    } catch (err) {
+      console.error('PDF generation failed:', err);
+      window.print();
+    } finally {
+      setIsGeneratingPdf(false);
+    }
+  }, [profile.fullName]);
+
   const downloadPdf = () => {
     if (isOutOfSync) {
       if (window.confirm("You have unsynced changes. Are you sure you want to download the PDF without syncing?")) {
-        window.print();
+        generateAndDownloadPdf();
       }
     } else {
-      window.print();
+      generateAndDownloadPdf();
     }
   };
 
-  const handleRedirect = () => {
+  const handleRedirect = async () => {
     const url =
       syncUserType === 'new'
         ? 'https://wa.me/919403509920?text=redirectnewprofile'
         : 'https://wa.me/919403509920?text=redirectupdatedprofile';
+
+    try {
+      await fetch('/api/auth/logout', { method: 'POST', credentials: 'include' });
+    } catch { /* best-effort */ }
+    sessionStorage.clear();
+
     window.location.href = url;
   };
 
-  const InfoBlock = ({ label, value, section }: { label: string, value: string | string[], section: Section }) => (
-    <div 
-      onClick={() => setPendingSection(section)}
-      className="mb-4 group cursor-pointer hover:bg-slate-50 p-2 -m-2 rounded-xl transition-all duration-200"
-    >
-      <div className="flex justify-between items-start mb-1">
+  const InfoBlock = ({ label, value }: { label: string, value: string | string[] }) => (
+    <div className="mb-4 p-2 -m-2">
+      <div className="mb-1">
         <span className="text-[10px] font-black text-[#2c4869]/40 uppercase tracking-widest">{label}</span>
-        <div className="flex items-center gap-1 text-[10px] font-black text-[#f58434] opacity-0 group-hover:opacity-100 transition-opacity uppercase no-print">
-          <Pencil size={10} strokeWidth={3} />
-          <span>Edit</span>
-        </div>
       </div>
       <div className="text-[#2c4869] text-sm font-black break-words leading-relaxed">
         {Array.isArray(value) 
           ? (value.length > 0 ? value.join(', ') : <span className="text-slate-300 italic text-xs font-medium">Not specified</span>) 
           : ((value ?? '') || <span className="text-slate-300 italic text-xs font-medium">Not specified</span>)}
       </div>
+    </div>
+  );
+
+  const SectionHeader = ({ title, section }: { title: string, section: Section }) => (
+    <div className="flex justify-between items-center mb-6 border-b border-[#f58434]/10 pb-2">
+      <h3 className="text-xs font-black text-[#f58434] uppercase tracking-widest">{title}</h3>
+      <button
+        type="button"
+        onClick={() => setPendingSection(section)}
+        className="flex items-center gap-1.5 text-[10px] font-black text-[#f58434] uppercase no-print hover:text-[#f58434]/80 transition-colors"
+      >
+        <Pencil size={10} strokeWidth={3} />
+        <span>Edit</span>
+      </button>
     </div>
   );
 
@@ -301,8 +369,8 @@ const ReviewPage: React.FC<Props> = ({
           </p>
         </div>
       )}
-      <div className="bg-white p-6 sm:p-10 rounded-3xl border border-slate-200 shadow-2xl overflow-hidden relative print:shadow-none print:border-none print:p-0">
-        <div className="absolute top-0 right-0 p-6 sm:p-10 flex flex-col items-end gap-3 print:static print:flex-row print:justify-between print:w-full print:p-0 print:mb-8">
+      <div ref={reviewCardRef} className="bg-white p-6 sm:p-10 rounded-3xl border border-slate-200 shadow-2xl overflow-hidden relative print:shadow-none print:border-none print:p-0">
+        <div className="flex justify-end mb-6 print:mb-8">
            <img 
             src={VIGYAN_SHAALA_LOGO} 
             alt="VigyanShaala" 
@@ -311,32 +379,38 @@ const ReviewPage: React.FC<Props> = ({
         </div>
 
         <section className="mb-10">
-          <h3 className="text-xs font-black text-[#f58434] mb-6 border-b border-[#f58434]/10 pb-2 uppercase tracking-widest">Your Foundation</h3>
+          <SectionHeader title="Identity" section={Section.BASIC} />
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-8 gap-y-2">
-            <InfoBlock label="Full Name" value={profile.fullName} section={Section.BASIC} />
-            <InfoBlock label="Gender & Pronouns" value={[profile.gender, profile.pronouns].filter(Boolean).join(' / ')} section={Section.BASIC} />
-            <InfoBlock label="WhatsApp Number" value={profile.whatsappNumber} section={Section.BASIC} />
-            <InfoBlock label="Location" value={profile.location} section={Section.BASIC} />
-            <InfoBlock label="Institution" value={profile.collegeName} section={Section.ACADEMIC} />
-            <InfoBlock label="Degree Path" value={`${profile.degreeType} in ${specDisplay}`} section={Section.ACADEMIC} />
-            <InfoBlock label="Year of Study" value={profile.yearOfStudy === 'Alumnus' && profile.graduationYear ? `Alumnus (Graduated: ${profile.graduationYear})` : profile.yearOfStudy} section={Section.ACADEMIC} />
-            <InfoBlock label="Current CGPA" value={profile.cgpa} section={Section.ACADEMIC} />
-            <InfoBlock label="Academic Interests" value={profile.interests} section={Section.SKILLS} />
+            <InfoBlock label="Full Name" value={profile.fullName} />
+            <InfoBlock label="Gender & Pronouns" value={[profile.gender, profile.pronouns].filter(Boolean).join(' / ')} />
+            <InfoBlock label="WhatsApp Number" value={profile.whatsappNumber} />
+            <InfoBlock label="Location" value={profile.location} />
           </div>
         </section>
 
         <section className="mb-10">
-          <h3 className="text-xs font-black text-[#f58434] mb-6 border-b border-[#f58434]/10 pb-2 uppercase tracking-widest">Skills & Expertise</h3>
+          <SectionHeader title="Academics" section={Section.ACADEMIC} />
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-8 gap-y-2">
+            <InfoBlock label="Institution" value={profile.collegeName} />
+            <InfoBlock label="Degree Path" value={`${profile.degreeType} in ${specDisplay}`} />
+            <InfoBlock label="Year of Study" value={profile.yearOfStudy === 'Alumnus' && profile.graduationYear ? `Alumnus (Graduated: ${profile.graduationYear})` : profile.yearOfStudy} />
+            <InfoBlock label="Current CGPA" value={profile.cgpa} />
+          </div>
+        </section>
+
+        <section className="mb-10">
+          <SectionHeader title="Skills & Expertise" section={Section.SKILLS} />
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-8">
-            <InfoBlock label="Subject Expertise" value={profile.subjectSkills} section={Section.SKILLS} />
-            <InfoBlock label="Technical Tools & IT" value={profile.toolSkills} section={Section.SKILLS} />
-            <InfoBlock label="AI & Data Skills" value={profile.aiSkills} section={Section.SKILLS} />
-            <InfoBlock label="Professional Skills" value={profile.professionalSkills} section={Section.SKILLS} />
+            <InfoBlock label="Academic Interests" value={profile.interests} />
+            <InfoBlock label="Subject Expertise" value={profile.subjectSkills} />
+            <InfoBlock label="Technical Tools & IT" value={profile.toolSkills} />
+            <InfoBlock label="AI & Data Skills" value={profile.aiSkills} />
+            <InfoBlock label="Professional Skills" value={profile.professionalSkills} />
           </div>
         </section>
 
         <section className="mb-10">
-          <h3 className="text-xs font-black text-[#f58434] mb-6 border-b border-[#f58434]/10 pb-2 uppercase tracking-widest">Achievements & Milestones</h3>
+          <SectionHeader title="Achievements & Milestones" section={Section.MILESTONES} />
           <div className="space-y-2">
             <InfoBlock 
               label="Projects" 
@@ -344,7 +418,6 @@ const ReviewPage: React.FC<Props> = ({
                 const name = p.name;
                 return p.status ? `${name} - ${p.status}${p.details ? ` (${p.details})` : ''}` : name;
               })} 
-              section={Section.MILESTONES} 
             />
             <InfoBlock 
               label="Exams" 
@@ -352,7 +425,6 @@ const ReviewPage: React.FC<Props> = ({
                 const name = e.name;
                 return e.status ? `${name} - ${e.status}${e.details ? ` (${e.details})` : ''}` : name;
               })} 
-              section={Section.MILESTONES} 
             />
             <InfoBlock 
               label="Certifications" 
@@ -360,21 +432,20 @@ const ReviewPage: React.FC<Props> = ({
                 const name = c.name;
                 return c.status ? `${name} - ${c.status}${c.details ? ` (${c.details})` : ''}` : name;
               })} 
-              section={Section.MILESTONES} 
             />
           </div>
         </section>
 
         <section className="mb-10">
-          <h3 className="text-xs font-black text-[#f58434] mb-6 border-b border-[#f58434]/10 pb-2 uppercase tracking-widest">Your STEM Mindset</h3>
+          <SectionHeader title="Your STEM Mindset" section={Section.REFLECTIONS} />
           <div className="space-y-6">
-            <InfoBlock label="The Purpose" value={profile.reflections.impactPurpose} section={Section.REFLECTIONS} />
-            <InfoBlock label="Your Superpower" value={profile.reflections.strengths} section={Section.REFLECTIONS} />
-            <InfoBlock label="The Curiosity" value={profile.reflections.curiosity} section={Section.REFLECTIONS} />
-            <InfoBlock label="The Gritty Growth" value={profile.reflections.grittyGrowth} section={Section.REFLECTIONS} />
-            <InfoBlock label="The Spark" value={profile.reflections.spark} section={Section.REFLECTIONS} />
-            <InfoBlock label="The Opportunities" value={profile.reflections.opportunities} section={Section.REFLECTIONS} />
-            <InfoBlock label="The Threats" value={profile.reflections.threats} section={Section.REFLECTIONS} />
+            <InfoBlock label="The Purpose" value={profile.reflections.impactPurpose} />
+            <InfoBlock label="Your Superpower" value={profile.reflections.strengths} />
+            <InfoBlock label="The Curiosity" value={profile.reflections.curiosity} />
+            <InfoBlock label="The Gritty Growth" value={profile.reflections.grittyGrowth} />
+            <InfoBlock label="The Spark" value={profile.reflections.spark} />
+            <InfoBlock label="The Opportunities" value={profile.reflections.opportunities} />
+            <InfoBlock label="The Threats" value={profile.reflections.threats} />
           </div>
         </section>
 
@@ -407,12 +478,6 @@ const ReviewPage: React.FC<Props> = ({
         </div>
 
         <div className="space-y-6 no-print">
-          <div id="chat-settings-anchor">
-            <ChatSettings 
-              preferences={chatPreferences} 
-              updatePreferences={(updates) => setChatPreferences({ ...chatPreferences, ...updates })} 
-            />
-          </div>
           {isLocked && (
             <div className="bg-amber-50 border-2 border-amber-200 rounded-3xl p-6 animate-in slide-in-from-top-4 duration-500">
               <div className="flex items-start gap-4">
@@ -464,11 +529,11 @@ const ReviewPage: React.FC<Props> = ({
             {isOutOfSync && !isLocked && (
               <div className="bg-[#f58434]/5 border border-[#f58434]/20 rounded-2xl p-4 mb-2 animate-pulse">
                 <p className="text-[11px] font-black text-[#f58434] uppercase tracking-tight text-center">
-                  ⚠️ {profile.lastSyncedAt ? 'New changes detected. Sync to save updates and unlock PDF' : 'Sync your profile to save all changes and unlock PDF'}
+                  ⚠️ {profile.lastSyncedAt ? 'New changes detected. Sync to save updates and unlock PDF' : 'Sync your profile to save all changes'}
                 </p>
               </div>
             )}
-            
+
             <button 
               onClick={handleUpdateCurie}
               disabled={isUpdatingCurie || isLocked}
@@ -528,26 +593,6 @@ const ReviewPage: React.FC<Props> = ({
               </div>
             )}
 
-            <button 
-              onClick={downloadPdf}
-              disabled={isPdfLocked}
-              className={`w-full py-5 rounded-2xl font-black flex items-center justify-center gap-2 transition-all shadow-md active:scale-[0.98] ${
-                isPdfLocked
-                ? 'bg-slate-100 text-slate-400 cursor-not-allowed shadow-none'
-                : 'bg-[#2c4869] text-white hover:bg-[#2c4869]/90'
-              }`}
-            >
-              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-              </svg>
-              Download PDF
-              {isPdfLocked && (
-                <span className="text-[10px] opacity-60 ml-2">
-                  ({!profile.lastSyncedAt ? 'Sync Required' : 'Locked'})
-                </span>
-              )}
-            </button>
-
             <div className="text-center flex flex-col items-center pt-4">
               <p className="text-[10px] text-[#2c4869]/40 font-bold italic mb-1">
                 Your data is shared only with Curie for personalized support.
@@ -569,48 +614,47 @@ const ReviewPage: React.FC<Props> = ({
         </div>
       </div>
       
-      {/* Preference Prompt Modal */}
+      {/* Pre-Sync PDF Download Confirmation Modal */}
       <AnimatePresence>
-        {showPreferencePrompt && (
+        {showPreSyncModal && (
           <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-[#2c4869]/60 backdrop-blur-sm">
-            <motion.div 
+            <motion.div
               initial={{ opacity: 0, scale: 0.9, y: 20 }}
               animate={{ opacity: 1, scale: 1, y: 0 }}
               exit={{ opacity: 0, scale: 0.9, y: 20 }}
               className="bg-white rounded-[32px] p-8 max-w-md w-full shadow-2xl border border-slate-100"
             >
-              <div className="flex items-center gap-4 mb-6">
-                <div className="w-12 h-12 bg-[#ffcd29]/20 text-[#ffcd29] rounded-2xl flex items-center justify-center">
-                  <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-                  </svg>
-                </div>
-                <h3 className="text-xl font-black text-[#2c4869] uppercase tracking-tight">Wait a moment!</h3>
-              </div>
-              
-              <p className="text-sm font-medium text-[#2c4869]/70 leading-relaxed mb-8">
-                You haven't set your <span className="text-[#f58434] font-black">Chat Preferences</span> yet. 
-                Setting these helps Curie tailor its advice exactly how you like it (e.g., bullet points vs. paragraphs).
-                <br /><br />
-                It's not mandatory, but it's a great advantage!
-              </p>
-              
               <div className="flex flex-col gap-3">
-                <button 
-                  onClick={() => {
-                    setShowPreferencePrompt(false);
-                    const settingsEl = document.getElementById('chat-settings-anchor');
-                    settingsEl?.scrollIntoView({ behavior: 'smooth' });
-                  }}
-                  className="w-full py-4 rounded-2xl bg-[#2c4869] text-white font-black uppercase tracking-widest text-xs hover:bg-[#2c4869]/90 transition-all active:scale-[0.98]"
+                <button
+                  onClick={async () => { setShowPreSyncModal(false); await generateAndDownloadPdf(); executeSync(); }}
+                  disabled={isGeneratingPdf}
+                  className="w-full py-4 rounded-2xl bg-[#2c4869] text-white font-black uppercase tracking-widest text-xs hover:bg-[#2c4869]/90 transition-all active:scale-[0.98] flex items-center justify-center gap-2 disabled:opacity-60"
                 >
-                  Set Preferences First
+                  {isGeneratingPdf ? (
+                    <>
+                      <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                      Generating PDF...
+                    </>
+                  ) : (
+                    <>
+                      <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                      </svg>
+                      Download PDF & Sync Profile
+                    </>
+                  )}
                 </button>
-                <button 
-                  onClick={executeSync}
+                <button
+                  onClick={confirmAndSync}
+                  className="w-full py-4 rounded-2xl bg-[#f58434] text-white font-black uppercase tracking-widest text-xs hover:opacity-90 transition-all active:scale-[0.98]"
+                >
+                  Continue Sync
+                </button>
+                <button
+                  onClick={() => setShowPreSyncModal(false)}
                   className="w-full py-4 rounded-2xl bg-white text-[#2c4869]/40 font-black uppercase tracking-widest text-[10px] hover:text-[#2c4869]/60 transition-all"
                 >
-                  Sync Anyway
+                  Cancel
                 </button>
               </div>
             </motion.div>
@@ -671,9 +715,17 @@ const ReviewPage: React.FC<Props> = ({
               <h3 className="text-2xl font-black text-[#2c4869] tracking-tight mb-4">
                 Profile has been submitted successfully 🎉
               </h3>
-              <p className="text-sm font-medium text-[#2c4869]/60 leading-relaxed mb-8">
-                Continue on WhatsApp to complete your journey with our chatbot.
+              <p className="text-sm font-medium text-[#2c4869]/60 leading-relaxed mb-4">
+                You will now be redirected to WhatsApp.
               </p>
+              <div className="bg-slate-50 border border-slate-200 rounded-2xl p-5 mb-6">
+                <p className="text-xs font-black text-[#2c4869]/50 uppercase tracking-widest mb-2">
+                  Please send the following keyword message:
+                </p>
+                <p className="text-lg font-black text-[#2c4869] tracking-tight select-all">
+                  {syncUserType === 'new' ? 'redirectnewprofile' : 'redirectupdatedprofile'}
+                </p>
+              </div>
               <button
                 onClick={handleRedirect}
                 className="w-full py-4 rounded-2xl bg-[#2c4869] text-white font-black uppercase tracking-widest text-xs hover:bg-[#2c4869]/90 transition-all active:scale-[0.98] text-center"

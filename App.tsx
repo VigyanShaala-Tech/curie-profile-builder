@@ -1,6 +1,6 @@
 
 import React, { useState, useEffect, useRef } from 'react';
-import { Section, Profile, INITIAL_PROFILE, ChatPreferences, INITIAL_CHAT_PREFERENCES } from './types';
+import { Section, Profile, INITIAL_PROFILE } from './types';
 import {
   REFLECTION_PROMPTS,
   SECTION_LEVELS,
@@ -28,7 +28,6 @@ import confetti from 'canvas-confetti';
 
 const VIGYAN_SHAALA_LOGO = '/images/log.png';
 const STORAGE_KEY = 'vs_reflection_profile';
-const CHAT_PREFS_KEY = 'vs_chat_preferences';
 const STRICT_EMAIL_REGEX = /^[A-Za-z0-9._%+-]+@(gmail\.com|yahoo\.com|outlook\.com)$/i;
 const LEVEL_1_SECTIONS: Section[] = [Section.BASIC, Section.ACADEMIC, Section.SKILLS, Section.MILESTONES];
 const LEVEL_2_SECTIONS: Section[] = [Section.REFLECTIONS, Section.REVIEW];
@@ -110,7 +109,7 @@ const App: React.FC = () => {
   const [user, setUser] = useState<any>(null);
   const [authChecking, setAuthChecking] = useState(true);
 
-  const { profile, setProfile, chatPreferences, setChatPreferences } = useProfile();
+  const { profile, setProfile } = useProfile();
   const [visibleSections, setVisibleSections] = useState<Section[]>([Section.BASIC]);
   const [isStarted, setIsStarted] = useState(false);
   const [saveFeedback, setSaveFeedback] = useState(false);
@@ -140,12 +139,11 @@ const App: React.FC = () => {
         const res = await fetch('/api/auth/me');
         if (res.ok) {
           const data = await res.json();
-          setUser(data.user);
-          setIsAuthenticated(true);
-          
-          // Auto-start for returning authenticated users
+
           const saved = localStorage.getItem(STORAGE_KEY);
           if (saved) {
+            setUser(data.user);
+            setIsAuthenticated(true);
             try {
               const parsed = JSON.parse(saved);
               handleStart(parsed);
@@ -153,7 +151,9 @@ const App: React.FC = () => {
               handleStart();
             }
           } else {
-            handleStart();
+            // No local profile data — force re-login so the returning-user
+            // hydration flow runs properly via the onLogin callback.
+            await fetch('/api/auth/logout', { method: 'POST', credentials: 'include' });
           }
         }
       } catch (err) {
@@ -170,17 +170,6 @@ const App: React.FC = () => {
       setProfile(prev => ({ ...prev, whatsappNumber: user.phone }));
     }
   }, [user, profile.whatsappNumber, setProfile]);
-
-  useEffect(() => {
-    const savedPrefs = localStorage.getItem(CHAT_PREFS_KEY);
-    if (savedPrefs) {
-      setChatPreferences(JSON.parse(savedPrefs));
-    }
-  }, []);
-
-  useEffect(() => {
-    localStorage.setItem(CHAT_PREFS_KEY, JSON.stringify(chatPreferences));
-  }, [chatPreferences]);
 
   useEffect(() => {
     if (isStarted) {
@@ -423,19 +412,12 @@ const App: React.FC = () => {
 
   const hydrateProfileData = (existingRow: unknown): boolean => {
     if (!existingRow || typeof existingRow !== 'object') return false;
-    const row = existingRow as { profile?: unknown; chatPreferences?: unknown };
+    const row = existingRow as { profile?: unknown };
     if (!row.profile || typeof row.profile !== 'object') return false;
 
     const merged = mergeProfileWithDefaults(row.profile);
     setProfile(merged);
     localStorage.setItem(STORAGE_KEY, JSON.stringify(merged));
-
-    const chatPrefs =
-      row.chatPreferences && typeof row.chatPreferences === 'object'
-        ? ({ ...INITIAL_CHAT_PREFERENCES, ...row.chatPreferences } as ChatPreferences)
-        : INITIAL_CHAT_PREFERENCES;
-    setChatPreferences(chatPrefs);
-    localStorage.setItem(CHAT_PREFS_KEY, JSON.stringify(chatPrefs));
 
     const filledSections = Object.values(Section).filter((s) => s !== Section.REVIEW && isSectionFilled(s, merged));
     setSavedSections(filledSections);
@@ -806,7 +788,22 @@ const App: React.FC = () => {
   };
   const goToNextJourneySection = (fromSection: Section) => {
     const idx = JOURNEY_STEPS.indexOf(fromSection);
-    if (idx < 0 || idx >= JOURNEY_STEPS.length - 1) return;
+    if (idx < 0) return;
+
+    if (idx >= JOURNEY_STEPS.length - 1) {
+      if (!visibleSections.includes(Section.REVIEW)) {
+        setVisibleSections(v => [...v, Section.REVIEW]);
+      }
+      setResumeSectionEdit(null);
+      setEditingSection(Section.REVIEW);
+      setValidationErrors(null);
+      setCurrentSectionIndex(JOURNEY_STEPS.length - 1);
+      requestAnimationFrame(() => {
+        sectionRefs.current[Section.REVIEW]?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      });
+      return;
+    }
+
     const next = JOURNEY_STEPS[idx + 1];
     if (next === Section.REFLECTIONS && !level1Complete && !isReturningSession) {
       setSkipMessage('Please complete all required Level 1 sections to unlock Reflections.');
@@ -1049,7 +1046,6 @@ const App: React.FC = () => {
               setUser(null);
               setIsStarted(false);
               setProfile(INITIAL_PROFILE);
-              localStorage.removeItem(STORAGE_KEY);
             }}
             className="shrink-0 px-3 sm:px-4 py-2 rounded-full bg-[#2c4869] text-white text-[10px] font-bold uppercase tracking-wider hover:bg-[#2c4869]/90 transition-colors"
           >
@@ -1135,8 +1131,6 @@ const App: React.FC = () => {
                     profile={profile}
                     completeness={completeness}
                     isReturningUser={isReturningSession}
-                    chatPreferences={chatPreferences}
-                    setChatPreferences={setChatPreferences}
                     updateProfile={updateProfile}
                     setCurrentSection={(s) => {
                       setResumeSectionEdit(null);

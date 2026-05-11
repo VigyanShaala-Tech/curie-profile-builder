@@ -19,17 +19,6 @@ interface Props {
 
 const ACADEMIC_TF_STEPS = 8;
 
-/** Defer until after React applies draft profile updates (avoids completing with stale specialization). */
-const afterProfileFlush = (fn: () => void) => {
-  queueMicrotask(() => {
-    requestAnimationFrame(() => {
-      requestAnimationFrame(() => {
-        fn();
-      });
-    });
-  });
-};
-
 const AcademicForm: React.FC<Props> = ({
   profile,
   updateProfile,
@@ -63,6 +52,17 @@ const AcademicForm: React.FC<Props> = ({
   const [currentPercentage, setCurrentPercentage] = useState('');
   const [cgpaInputError, setCgpaInputError] = useState('');
   const inputRef = useRef<HTMLInputElement | HTMLSelectElement | null>(null);
+
+  const onCompleteSectionRef = useRef(onCompleteSection);
+  onCompleteSectionRef.current = onCompleteSection;
+  const [pendingComplete, setPendingComplete] = useState(false);
+
+  useEffect(() => {
+    if (pendingComplete) {
+      setPendingComplete(false);
+      onCompleteSectionRef.current?.();
+    }
+  }, [pendingComplete]);
 
   useEffect(() => {
     const raw = (profile.cgpa || '').trim();
@@ -523,7 +523,7 @@ const AcademicForm: React.FC<Props> = ({
                   updateProfile({ specializationCategory: value, specialization: '', customCategory: '', customSpecialization: '' });
                   setAttemptedNext(false);
                   if (value !== 'Other' && !resumeEdit) {
-                    afterProfileFlush(() => setStep(7));
+                    setTimeout(() => setStep(7), 150);
                   }
                 }}
                 options={categories.map((cat) => ({ label: cat, value: cat }))}
@@ -562,7 +562,7 @@ const AcademicForm: React.FC<Props> = ({
           )}
 
           {step === 7 && (
-            <TypeformSlide slideKey={`spec-${profile.specializationCategory}-${specializationToggleOptions.map((o) => o.value).join('|')}`}>
+            <TypeformSlide slideKey={`spec-${profile.specializationCategory}`}>
               <label className={`${typeformLabelClass} flex flex-wrap items-center gap-2`}>
                 Specialization <span className="text-red-500">*</span>
                 {profile.specialization &&
@@ -584,7 +584,7 @@ const AcademicForm: React.FC<Props> = ({
                   updateProfile({ specialization: value, customSpecialization: '' });
                   setAttemptedNext(false);
                   if (value !== 'Other' && !resumeEdit) {
-                    afterProfileFlush(() => onCompleteSection?.());
+                    setPendingComplete(true);
                   }
                 }}
                 options={specializationToggleOptions}

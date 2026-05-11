@@ -8,7 +8,7 @@ import Database from 'better-sqlite3';
 import bcrypt from 'bcryptjs';
 import jwt from 'jsonwebtoken';
 import cookieParser from 'cookie-parser';
-import type { ChatPreferences, Profile } from './types';
+import type { Profile } from './types';
 import type { NextFunction, Request, Response } from 'express';
 import { appendProfileToGoogleSheet, findUserByPhone } from './googleSheets';
 import { normalizePhone } from './phone';
@@ -214,7 +214,7 @@ async function startServer() {
 
   // Append full profile (+ chat prefs) to Google Sheet as one dataframe row
   app.post('/api/profile/sheets', async (req, res) => {
-    const body = req.body as { profile?: Profile; chatPreferences?: ChatPreferences };
+    const body = req.body as { profile?: Profile };
     const profile = body.profile;
     if (!profile || typeof profile !== 'object') {
       return res.status(400).json({ error: 'profile is required' });
@@ -238,7 +238,7 @@ async function startServer() {
     }
 
     try {
-      const { userType } = await appendProfileToGoogleSheet(profile, body.chatPreferences);
+      const { userType } = await appendProfileToGoogleSheet(profile);
       return res.json({ ok: true, sheetsSkipped: false, userType });
     } catch (err) {
       console.error('[sheets]', err);

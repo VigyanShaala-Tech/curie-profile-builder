@@ -1,6 +1,6 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
-import { Lock, ArrowRight, Loader2, KeyRound } from 'lucide-react';
+import { Lock, ArrowRight, Loader2, KeyRound, Eye, EyeOff } from 'lucide-react';
 import { getCountryCallingCode } from 'libphonenumber-js';
 import type { CountryCode } from 'libphonenumber-js';
 import { normalizePhone } from '../phone';
@@ -179,6 +179,9 @@ export const Auth: React.FC<AuthProps> = ({ onLogin }) => {
   const [debugOtp, setDebugOtp] = useState<string | null>(null);
   const [imgLoaded, setImgLoaded] = useState(true);
   const [otpCells, setOtpCells] = useState<string[]>(() => ['', '', '', '', '', '']);
+  const [showPassword, setShowPassword] = useState(false);
+  const [showNewPassword, setShowNewPassword] = useState(false);
+  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
 
   const phoneRef = useRef<HTMLInputElement>(null);
   const passwordRef = useRef<HTMLInputElement>(null);
@@ -470,7 +473,7 @@ export const Auth: React.FC<AuthProps> = ({ onLogin }) => {
                           <Lock className="absolute left-0 top-1/2 -translate-y-1/2 w-5 h-5 text-[#2c4869]/35" />
                           <input
                             ref={passwordRef}
-                            type="password"
+                            type={showPassword ? 'text' : 'password'}
                             value={password}
                             onChange={(e) => {
                               setPassword(e.target.value);
@@ -482,9 +485,17 @@ export const Auth: React.FC<AuthProps> = ({ onLogin }) => {
                                 handleSubmit(e as any);
                               }
                             }}
-                            className={`w-full pl-8 py-3.5 bg-transparent border-0 border-b-2 text-[#2c4869] text-lg font-semibold outline-none transition-colors ${passwordInputBorder}`}
+                            className={`w-full pl-8 pr-10 py-3.5 bg-transparent border-0 border-b-2 text-[#2c4869] text-lg font-semibold outline-none transition-colors ${passwordInputBorder}`}
                             placeholder="••••••••"
                           />
+                          <button
+                            type="button"
+                            onClick={() => setShowPassword((v) => !v)}
+                            className="absolute right-0 top-1/2 -translate-y-1/2 p-1 text-[#2c4869]/40 hover:text-[#2c4869]/70 transition-colors"
+                            tabIndex={-1}
+                          >
+                            {showPassword ? <EyeOff className="w-5 h-5" /> : <Eye className="w-5 h-5" />}
+                          </button>
                         </div>
                         {!isLogin && (
                           <p className="text-[10px] text-[#2c4869]/55 mt-1.5 font-medium">
@@ -655,27 +666,43 @@ export const Auth: React.FC<AuthProps> = ({ onLogin }) => {
                           <Lock className="absolute left-0 top-1/2 -translate-y-1/2 w-5 h-5 text-[#2c4869]/35" />
                           <input
                             ref={newPassRef}
-                            type="password"
+                            type={showNewPassword ? 'text' : 'password'}
                             value={newPassword}
                             onChange={(e) => {
                               setNewPassword(e.target.value);
                               setNewPasswordError('');
                             }}
-                            className={`w-full pl-8 py-3.5 bg-transparent border-0 border-b-2 text-[#2c4869] text-lg font-semibold outline-none ${newPassBorder}`}
+                            className={`w-full pl-8 pr-10 py-3.5 bg-transparent border-0 border-b-2 text-[#2c4869] text-lg font-semibold outline-none ${newPassBorder}`}
                             placeholder="Min 8 characters + complexity"
                           />
+                          <button
+                            type="button"
+                            onClick={() => setShowNewPassword((v) => !v)}
+                            className="absolute right-0 top-1/2 -translate-y-1/2 p-1 text-[#2c4869]/40 hover:text-[#2c4869]/70 transition-colors"
+                            tabIndex={-1}
+                          >
+                            {showNewPassword ? <EyeOff className="w-5 h-5" /> : <Eye className="w-5 h-5" />}
+                          </button>
                         </div>
                         {newPasswordError ? <p className="text-xs text-red-600 font-bold">{newPasswordError}</p> : null}
                         <label className="block text-xs font-black uppercase tracking-wider text-[#2c4869]/60 mt-2">Confirm Password</label>
                         <div className="relative">
                           <KeyRound className="absolute left-0 top-1/2 -translate-y-1/2 w-5 h-5 text-[#2c4869]/35" />
                           <input
-                            type="password"
+                            type={showConfirmPassword ? 'text' : 'password'}
                             value={confirmPassword}
                             onChange={(e) => setConfirmPassword(e.target.value)}
-                            className="w-full pl-8 py-3.5 bg-transparent border-0 border-b-2 border-[#2c4869]/25 text-[#2c4869] text-lg font-semibold outline-none focus:border-[#f58434]"
+                            className="w-full pl-8 pr-10 py-3.5 bg-transparent border-0 border-b-2 border-[#2c4869]/25 text-[#2c4869] text-lg font-semibold outline-none focus:border-[#f58434]"
                             placeholder="Repeat password"
                           />
+                          <button
+                            type="button"
+                            onClick={() => setShowConfirmPassword((v) => !v)}
+                            className="absolute right-0 top-1/2 -translate-y-1/2 p-1 text-[#2c4869]/40 hover:text-[#2c4869]/70 transition-colors"
+                            tabIndex={-1}
+                          >
+                            {showConfirmPassword ? <EyeOff className="w-5 h-5" /> : <Eye className="w-5 h-5" />}
+                          </button>
                         </div>
                         <button
                           type="button"

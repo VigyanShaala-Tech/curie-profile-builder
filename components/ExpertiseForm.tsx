@@ -124,7 +124,7 @@ const stepConfig = [
     field: 'subjectSkills' as const,
     inputKey: 'subject' as const,
     placeholder: 'Linear Algebra, Plant Science, Mathematics',
-    color: 'vs-orange' as const,
+    color: 'vs-blue' as const,
     err: 'Subject Expertise',
   },
   {
@@ -134,7 +134,7 @@ const stepConfig = [
     field: 'toolSkills' as const,
     inputKey: 'tool' as const,
     placeholder: 'Python, Git, SolidWorks, Excel…',
-    color: 'vs-orange' as const,
+    color: 'vs-blue' as const,
     err: 'Technical Tools',
   },
   {
@@ -144,7 +144,7 @@ const stepConfig = [
     field: 'aiSkills' as const,
     inputKey: 'ai' as const,
     placeholder: 'ML, data analysis, visualization, and related skills',
-    color: 'vs-orange' as const,
+    color: 'vs-blue' as const,
     err: 'AI & Data Skills',
   },
   {
@@ -154,7 +154,7 @@ const stepConfig = [
     field: 'professionalSkills' as const,
     inputKey: 'professional' as const,
     placeholder: 'Teamwork, Time Management, Public Speaking',
-    color: 'vs-yellow' as const,
+    color: 'vs-blue' as const,
     err: 'Professional Skills',
   },
   {

@@ -44,9 +44,9 @@ const JourneyHorizontalTracker: React.FC<JourneyHorizontalTrackerProps> = ({
   onReflectionLockedAttempt,
 }) => {
   return (
-    <div className="w-full px-0">
-      <div className="overflow-x-auto no-scrollbar pb-1 w-full">
-        <div className="flex min-w-max sm:min-w-0 sm:w-full items-start justify-center sm:justify-between gap-4 sm:gap-1">
+    <div className="w-full px-1 sm:px-0">
+      <div className="w-full pb-1">
+        <div className="flex w-full items-start justify-between gap-0 sm:gap-1">
           {journeySteps.map((sec, idx) => {
             const isCompleted = completedMap[sec];
             const isActive = editingSection === sec;
@@ -62,7 +62,7 @@ const JourneyHorizontalTracker: React.FC<JourneyHorizontalTrackerProps> = ({
             const visualWrapClass = isFutureVisual ? 'opacity-40' : 'opacity-100';
 
             const circleBase =
-              'relative rounded-full border-2 flex items-center justify-center bg-white transition-all duration-500 ease-out w-10 h-10 sm:w-14 sm:h-14 text-lg sm:text-2xl leading-none';
+              'relative rounded-full border-2 flex items-center justify-center bg-white transition-all duration-500 ease-out w-9 h-9 sm:w-14 sm:h-14 text-base sm:text-2xl leading-none';
 
             const circleState = isCompleted
               ? 'border-emerald-400 shadow-[0_0_0_3px_rgba(16,185,129,0.12)]'
@@ -73,14 +73,14 @@ const JourneyHorizontalTracker: React.FC<JourneyHorizontalTrackerProps> = ({
               : 'border-slate-300';
 
             const segmentClass = (filled: boolean) =>
-              `h-1 w-full max-w-[40px] rounded-full transition-all duration-700 ease-in-out ${
+              `h-0.5 sm:h-1 w-full rounded-full transition-all duration-700 ease-in-out ${
                 filled ? 'bg-emerald-500' : 'bg-slate-200'
               } ${filled ? 'opacity-100' : 'opacity-40'}`;
 
             return (
               <div
                 key={`journey-track-${sec}`}
-                className="flex flex-col items-center w-full min-w-[5.5rem] sm:flex-1 sm:min-w-0 shrink-0"
+                className="flex flex-col items-center flex-1 min-w-0"
               >
                 <div className="flex flex-col items-center w-full">
                   <div className="flex items-center w-full">
@@ -90,7 +90,7 @@ const JourneyHorizontalTracker: React.FC<JourneyHorizontalTrackerProps> = ({
                       )}
                     </div>
 
-                    <div className="w-14 flex justify-center shrink-0 items-center">
+                    <div className="w-10 sm:w-14 flex justify-center shrink-0 items-center">
                       <div className={`transition-opacity duration-500 ${visualWrapClass}`}>
                         <motion.button
                           type="button"
@@ -113,7 +113,7 @@ const JourneyHorizontalTracker: React.FC<JourneyHorizontalTrackerProps> = ({
                           aria-label={STEP_LABEL[sec]}
                         >
                           {isLocked ? (
-                            <span className="text-sm sm:text-lg" aria-hidden>
+                            <span className="text-xs sm:text-lg" aria-hidden>
                               🔒
                             </span>
                           ) : (
@@ -121,10 +121,10 @@ const JourneyHorizontalTracker: React.FC<JourneyHorizontalTrackerProps> = ({
                               <span className="select-none pointer-events-none">{STEP_AVATAR[sec]}</span>
                               {isCompleted && (
                                 <span
-                                  className="absolute -bottom-0.5 -right-0.5 flex h-4 w-4 sm:h-5 sm:w-5 items-center justify-center rounded-full bg-emerald-500 text-white shadow-sm"
+                                  className="absolute -bottom-0.5 -right-0.5 flex h-3.5 w-3.5 sm:h-5 sm:w-5 items-center justify-center rounded-full bg-emerald-500 text-white shadow-sm"
                                   aria-hidden
                                 >
-                                  <Check className="w-2.5 h-2.5 sm:w-3 sm:h-3" strokeWidth={3} />
+                                  <Check className="w-2 h-2 sm:w-3 sm:h-3" strokeWidth={3} />
                                 </span>
                               )}
                             </>
@@ -140,7 +140,7 @@ const JourneyHorizontalTracker: React.FC<JourneyHorizontalTrackerProps> = ({
                     </div>
                   </div>
 
-                  <span className="mt-2 w-full text-center text-xs sm:text-sm font-bold uppercase tracking-wide text-slate-700 leading-tight">
+                  <span className="mt-1.5 sm:mt-2 w-full text-center text-[9px] sm:text-sm font-bold uppercase tracking-wide text-slate-700 leading-tight truncate px-0.5">
                     {STEP_LABEL[sec]}
                   </span>
                 </div>

@@ -1,4 +1,4 @@
-import type { ChatPreferences, Profile } from './types';
+import type { Profile } from './types';
 import { normalizePhone } from './phone';
 
 /**
@@ -14,7 +14,6 @@ export const SHEET_COLUMN_HEADERS = [
   'skills_interests',
   'milestones',
   'reflections',
-  'chat_settings',
   'profile',
   /** Appended last; populated from Sheet3 phone lookup (new vs returning). */
   'user_type',
@@ -55,7 +54,6 @@ export type SheetUserType = 'new' | 'returning';
 
 function profileToSheetsRowObject(
   profile: Profile,
-  chatPreferences: ChatPreferences | undefined,
   _exportedAt: string,
   userType?: SheetUserType
 ): Record<string, string> {
@@ -117,11 +115,6 @@ function profileToSheetsRowObject(
     barriers: normalizeString(r.threats),
   };
 
-  const chat_settings = {
-    response_length: normalizeString(chatPreferences?.responseLength ?? ''),
-    response_format: normalizeString(chatPreferences?.responseFormat ?? ''),
-  };
-
   /** Full snapshot for the `profile` column only (JSON string). Maps from Profile + preferences. */
   const profileData = {
     first_name: first,
@@ -156,8 +149,6 @@ function profileToSheetsRowObject(
     actions: normalizeString(r.spark),
     opportunities: normalizeString(r.opportunities),
     barriers: normalizeString(r.threats),
-    response_length: normalizeString(chatPreferences?.responseLength ?? ''),
-    response_format: normalizeString(chatPreferences?.responseFormat ?? ''),
   };
 
   const row: Record<string, string> = {
@@ -173,7 +164,6 @@ function profileToSheetsRowObject(
     skills_interests: safeJson(skills_interests),
     milestones: safeJson(milestones),
     reflections: safeJson(reflections),
-    chat_settings: safeJson(chat_settings),
     profile: safeJson(profileData),
     user_type: userType ?? '',
   };
@@ -183,13 +173,10 @@ function profileToSheetsRowObject(
 
 export function profileToDataframeRow(
   profile: Profile,
-  chatPreferences: ChatPreferences | undefined,
   exportedAt: string,
   userType?: SheetUserType
 ): string[] {
-  // Backward-compatible helper: old googleSheets.ts expects a string[].
-  // New googleSheets.ts aligns by headers; this function can remain for compatibility.
-  const map = profileToSheetsRowObject(profile, chatPreferences, exportedAt, userType);
+  const map = profileToSheetsRowObject(profile, exportedAt, userType);
   return Object.values(map);
 }
 

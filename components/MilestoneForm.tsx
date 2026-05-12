@@ -231,10 +231,18 @@ const MilestoneForm: React.FC<Props> = ({
     [profile.projects]
   );
 
+  const savedMilestoneCount = useMemo(
+    () =>
+      profile.projects.filter((p) => (p?.name || '').trim().length > 0 && p.isSaved !== false).length +
+      profile.certifications.filter((c) => (c?.name || '').trim().length > 0 && c.isSaved !== false).length +
+      profile.exams.filter((e) => (e?.name || '').trim().length > 0 && e.isSaved !== false).length,
+    [profile.projects, profile.certifications, profile.exams]
+  );
+
   const handleMilestoneStep0Next = useCallback(() => {
-    if (savedProjectCount < 1) {
+    if (savedMilestoneCount < 1) {
       setAttemptedNext(true);
-      setMilestoneStep0Kind('project');
+      setMilestoneStep0Kind('mandatory');
       return;
     }
     if (!milestoneMandatoryOk(profile)) {
@@ -245,7 +253,7 @@ const MilestoneForm: React.FC<Props> = ({
     setMilestoneStep0Kind(null);
     setAttemptedNext(false);
     onCompleteSection?.();
-  }, [profile, savedProjectCount, onCompleteSection]);
+  }, [profile, savedMilestoneCount, onCompleteSection]);
 
   useEffect(() => {
     if (!typeform || readOnly) return;
@@ -262,11 +270,11 @@ const MilestoneForm: React.FC<Props> = ({
   }, [typeform, readOnly, msStep, handleMilestoneStep0Next]);
 
   useEffect(() => {
-    if (savedProjectCount >= 1 && milestoneStep0Kind === 'project') {
+    if (savedMilestoneCount >= 1 && milestoneStep0Kind !== null) {
       setMilestoneStep0Kind(null);
       setAttemptedNext(false);
     }
-  }, [savedProjectCount, milestoneStep0Kind]);
+  }, [savedMilestoneCount, milestoneStep0Kind]);
 
   if (typeform && !readOnly) {
     const getDraftEntry = (): UnifiedEntry | null => {
@@ -502,13 +510,14 @@ const MilestoneForm: React.FC<Props> = ({
                 showBack={!!onBackFromFirst}
                 onBack={goBackMs}
                 onNext={handleMilestoneStep0Next}
-                nextLabel={savedProjectCount >= 1 && milestoneMandatoryOk(profile) ? 'Continue' : 'Next'}
+                nextLabel={savedMilestoneCount >= 1 && milestoneMandatoryOk(profile) ? 'Continue' : 'Next'}
               />
-              {attemptedNext && msStep === 0 && milestoneStep0Kind === 'project' && (
-                <p className={formFieldErrorClass}>Please add at least one project to continue.</p>
-              )}
               {attemptedNext && msStep === 0 && milestoneStep0Kind === 'mandatory' && (
-                <p className={formFieldErrorClass}>Choose a type above or finish a draft entry</p>
+                <p className={formFieldErrorClass}>
+                  {savedMilestoneCount < 1
+                    ? 'Please add at least one project, certification, or exam to continue.'
+                    : 'Choose a type above or finish a draft entry'}
+                </p>
               )}
             </TypeformSlide>
           )}

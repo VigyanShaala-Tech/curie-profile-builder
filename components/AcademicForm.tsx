@@ -354,13 +354,13 @@ const AcademicForm: React.FC<Props> = ({
           {step === 4 && (
             <TypeformSlide slideKey={4}>
               <label className={typeformLabelClass}>
-                {profile.academicStatus === 'studying' ? 'Current CGPA / Percentage' : 'Final CGPA / Percentage'} <span className="text-red-500">*</span>
+                {profile.academicStatus === 'studying' ? 'Current CGPA / Percentage' : 'CGPA / Percentage'} <span className="text-red-500">*</span>
               </label>
               <p className="text-xs text-slate-500 mb-4">Please provide either your CGPA or Percentage.</p>
               <div className="space-y-4">
                 <div>
                   <div className="flex items-center justify-between mb-2">
-                    <label className="text-sm font-semibold text-[#2c4869]">Current CGPA (0–10)</label>
+                    <label className="text-sm font-semibold text-[#2c4869]">CGPA (0–10)</label>
                     <input
                       type="text"
                       value={currentCgpa}
@@ -418,7 +418,7 @@ const AcademicForm: React.FC<Props> = ({
                   />
                 </div>
                 <div>
-                  <label className="text-sm font-semibold text-[#2c4869]">Current Percentage (0–100)</label>
+                  <label className="text-sm font-semibold text-[#2c4869]">Percentage (0–100)</label>
                   <input
                     ref={inputRef as React.RefObject<HTMLInputElement>}
                     type="text"
@@ -740,13 +740,13 @@ const AcademicForm: React.FC<Props> = ({
             {(!readOnly || profile.cgpa) && (
               <div>
                 <label className="block text-sm font-bold text-[#2c4869] mb-2 tracking-tight">
-                  {profile.academicStatus === 'studying' ? 'Current CGPA / Percentage' : 'Final CGPA / Percentage'}
+                  {profile.academicStatus === 'studying' ? 'Current CGPA / Percentage' : 'CGPA / Percentage'}
                 </label>
                 <p className="text-xs text-slate-500 mb-2">Please provide either your CGPA or Percentage.</p>
                 <div className="space-y-3">
                   <div>
                     <div className="flex items-center justify-between mb-1">
-                      <label className="text-xs font-bold text-[#2c4869]">Current CGPA (0–10)</label>
+                      <label className="text-xs font-bold text-[#2c4869]">CGPA (0–10)</label>
                       <span className="text-xs font-bold text-[#f58434]">{currentCgpa || '0.0'}</span>
                     </div>
                     <input
@@ -765,7 +765,7 @@ const AcademicForm: React.FC<Props> = ({
                     />
                   </div>
                   <div>
-                    <label className="block text-xs font-bold text-[#2c4869] mb-1">Current Percentage (0–100)</label>
+                    <label className="block text-xs font-bold text-[#2c4869] mb-1">Percentage (0–100)</label>
                     <input
                       type="text"
                       value={currentPercentage}

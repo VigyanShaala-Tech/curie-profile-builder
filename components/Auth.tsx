@@ -176,7 +176,8 @@ export const Auth: React.FC<AuthProps> = ({ onLogin }) => {
   const [newPassword, setNewPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
   const [newPasswordError, setNewPasswordError] = useState('');
-  const [debugOtp, setDebugOtp] = useState<string | null>(null);
+  const [resetEmail, setResetEmail] = useState('');
+  const [resetEmailError, setResetEmailError] = useState('');
   const [imgLoaded, setImgLoaded] = useState(true);
   const [otpCells, setOtpCells] = useState<string[]>(() => ['', '', '', '', '', '']);
   const [showPassword, setShowPassword] = useState(false);
@@ -220,6 +221,7 @@ export const Auth: React.FC<AuthProps> = ({ onLogin }) => {
     setPhoneError('');
     setPasswordError('');
     setNewPasswordError('');
+    setResetEmailError('');
   };
 
   const closeForgotToSignIn = () => {
@@ -228,7 +230,7 @@ export const Auth: React.FC<AuthProps> = ({ onLogin }) => {
     setOtpCells(['', '', '', '', '', '']);
     setNewPassword('');
     setConfirmPassword('');
-    setDebugOtp(null);
+    setResetEmail('');
     setError('');
     clearFieldErrors();
   };
@@ -287,9 +289,11 @@ export const Auth: React.FC<AuthProps> = ({ onLogin }) => {
   const requestPasswordReset = async () => {
     clearFieldErrors();
     if (!isNationalPhoneOk(nationalNumber)) {
-      const msg = 'Enter a valid phone number';
-      setPhoneError(msg);
-      setError(msg);
+      setPhoneError('Enter a valid phone number');
+      return;
+    }
+    if (!resetEmail.trim() || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(resetEmail.trim())) {
+      setResetEmailError('Enter a valid email address');
       return;
     }
     setError('');
@@ -298,19 +302,14 @@ export const Auth: React.FC<AuthProps> = ({ onLogin }) => {
       const res = await fetch('/api/auth/request-password-reset', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ phone: normalizedPhone }),
+        body: JSON.stringify({ phone: normalizedPhone, email: resetEmail.trim() }),
       });
       const data = await readJsonBody(res);
       if (!res.ok) throw new Error(apiErrorMessage(data, 'Could not send OTP'));
-      if (data.debugOtp != null) setDebugOtp(String(data.debugOtp));
       setOtpCells(['', '', '', '', '', '']);
       setForgotStep(1);
-    } catch {
-      const mock = Math.floor(100000 + Math.random() * 900000).toString();
-      setDebugOtp(mock);
-      setOtpCells(['', '', '', '', '', '']);
-      setForgotStep(1);
-      setError('');
+    } catch (err: any) {
+      setError(err.message || 'Could not send OTP. Please try again.');
     } finally {
       setLoading(false);
     }
@@ -355,10 +354,6 @@ export const Auth: React.FC<AuthProps> = ({ onLogin }) => {
   const verifyOtpAndContinue = () => {
     const joined = otpCells.join('');
     if (joined.length !== 6) return;
-    if (debugOtp && joined !== debugOtp) {
-      setError('Invalid OTP');
-      return;
-    }
     setError('');
     setForgotStep(2);
   };
@@ -503,17 +498,19 @@ export const Auth: React.FC<AuthProps> = ({ onLogin }) => {
                           </p>
                         )}
                         {passwordError ? <p className="text-xs text-red-600 font-bold mt-2">{passwordError}</p> : null}
-                        <button
-                          type="button"
-                          onClick={() => {
-                            setForgotOpen(true);
-                            setForgotStep(0);
-                            setError('');
-                          }}
-                          className="mt-3 text-sm font-bold text-[#2c4869]/70 hover:text-[#f58434]"
-                        >
-                          Forgot Password?
-                        </button>
+                        {isLogin && (
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setForgotOpen(true);
+                              setForgotStep(0);
+                              setError('');
+                            }}
+                            className="mt-3 text-sm font-bold text-[#2c4869]/70 hover:text-[#f58434]"
+                          >
+                            Forgot Password?
+                          </button>
+                        )}
                       </div>
                     )}
 
@@ -589,26 +586,31 @@ export const Auth: React.FC<AuthProps> = ({ onLogin }) => {
                     {forgotStep === 0 && (
                       <>
                         <label className="block text-xs font-black uppercase tracking-wider text-[#2c4869]/60">
-                          Phone Number
+                          Email Address
                         </label>
-                        <PhoneField
-                          nationalNumber={nationalNumber}
-                          setNationalNumber={setNationalNumber}
-                          countryIso={countryIso}
-                          setCountryIso={setCountryIso}
-                          hasError={!!phoneError}
-                          phoneRef={phoneRef}
-                          onClearError={() => setPhoneError('')}
-                          onEnter={() => canContinuePhone && !loading && requestPasswordReset()}
+                        <input
+                          type="email"
+                          value={resetEmail}
+                          onChange={(e) => { setResetEmail(e.target.value); setResetEmailError(''); }}
+                          onKeyDown={(e) => {
+                            if (e.key === 'Enter' && canContinuePhone && resetEmail.trim()) {
+                              e.preventDefault();
+                              requestPasswordReset();
+                            }
+                          }}
+                          placeholder="Enter your email to receive OTP"
+                          className={`w-full px-3 py-2.5 rounded-lg bg-transparent border ${
+                            resetEmailError ? 'border-red-500' : 'border-[#D1D5DB]'
+                          } text-[#2c4869] text-base font-semibold outline-none focus:border-[#f58434]`}
                         />
-                        {phoneError ? <p className="text-xs text-red-600 font-bold">{phoneError}</p> : null}
+                        {resetEmailError ? <p className="text-xs text-red-600 font-bold">{resetEmailError}</p> : null}
                         <button
                           type="button"
-                          disabled={loading || !canContinuePhone}
+                          disabled={loading || !canContinuePhone || !resetEmail.trim()}
                           onClick={requestPasswordReset}
                           className="w-full py-3.5 rounded-2xl bg-[#f58434] text-white font-black tracking-wide hover:bg-[#eb7723] disabled:opacity-50"
                         >
-                          {loading ? 'Sending...' : 'Send OTP'}
+                          {loading ? 'Sending OTP...' : 'Send OTP to Email'}
                         </button>
                         <p
                           role="button"
@@ -624,11 +626,9 @@ export const Auth: React.FC<AuthProps> = ({ onLogin }) => {
 
                     {forgotStep === 1 && (
                       <>
-                        {debugOtp && (
-                          <p className="text-xs text-[#2c4869] bg-white/80 border border-[#2c4869]/15 rounded-lg px-3 py-2">
-                            Dev OTP: <span className="font-black">{debugOtp}</span>
-                          </p>
-                        )}
+                        <p className="text-xs text-[#2c4869]/70 bg-[#9DD3AF]/30 border border-[#2c4869]/10 rounded-lg px-3 py-2">
+                          An OTP has been sent to your email. Please check your inbox.
+                        </p>
                         <label className="block text-xs font-black uppercase tracking-wider text-[#2c4869]/60">OTP</label>
                         <div className="otp-box flex gap-2 justify-between sm:justify-start sm:gap-3 mt-1">
                           {otpCells.map((cell, i) => (
@@ -729,8 +729,17 @@ export const Auth: React.FC<AuthProps> = ({ onLogin }) => {
                     )}
 
                     {forgotStep === 3 && (
-                      <div className="rounded-2xl border border-[#2c4869]/15 bg-[#9DD3AF]/40 px-4 py-5 text-center">
-                        <p className="text-[#2c4869] font-black">Password updated successfully</p>
+                      <div className="flex flex-col gap-4">
+                        <div className="rounded-2xl border border-[#2c4869]/15 bg-[#9DD3AF]/40 px-4 py-5 text-center">
+                          <p className="text-[#2c4869] font-black">Password updated successfully</p>
+                        </div>
+                        <button
+                          type="button"
+                          onClick={closeForgotToSignIn}
+                          className="w-full rounded-full bg-[#f58434] py-3 text-base font-extrabold text-white shadow-md hover:brightness-105 transition"
+                        >
+                          Log In
+                        </button>
                       </div>
                     )}
 

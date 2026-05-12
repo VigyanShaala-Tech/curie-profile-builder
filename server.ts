@@ -12,6 +12,25 @@ import type { Profile } from './types';
 import type { NextFunction, Request, Response } from 'express';
 import { appendProfileToGoogleSheet, findUserByPhone } from './googleSheets';
 import { normalizePhone } from './phone';
+import nodemailer from 'nodemailer';
+
+const otpStore = new Map<string, { otp: string; email: string; expiresAt: number }>();
+
+const OTP_EXPIRY_MS = 10 * 60 * 1000;
+
+function generateOtp(): string {
+  return Math.floor(100000 + Math.random() * 900000).toString();
+}
+
+function createSmtpTransport() {
+  const email = process.env.SMTP_EMAIL?.trim();
+  const pass = process.env.SMTP_APP_PASSWORD?.trim();
+  if (!email || !pass) return null;
+  return nodemailer.createTransport({
+    service: 'gmail',
+    auth: { user: email, pass },
+  });
+}
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const JWT_SECRET = process.env.JWT_SECRET || 'super-secret-key-for-dev';
@@ -210,6 +229,95 @@ async function startServer() {
   app.post('/api/auth/logout', (req, res) => {
     res.clearCookie('token');
     res.json({ success: true });
+  });
+
+  // Request password reset — send OTP to user's email
+  app.post('/api/auth/request-password-reset', async (req, res) => {
+    const { phone, email } = req.body as { phone?: string; email?: string };
+    const normalizedPhone = normalizePhone(phone || '');
+    if (!normalizedPhone) {
+      return res.status(400).json({ error: 'Valid phone number is required' });
+    }
+    if (!email || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.trim())) {
+      return res.status(400).json({ error: 'Valid email address is required' });
+    }
+
+    const user = db.prepare('SELECT id FROM users WHERE phone = ?').get(normalizedPhone) as { id: number } | undefined;
+    if (!user) {
+      return res.status(404).json({ error: 'No account found with this phone number' });
+    }
+
+    const transport = createSmtpTransport();
+    if (!transport) {
+      console.error('[otp] SMTP_EMAIL or SMTP_APP_PASSWORD not configured');
+      return res.status(500).json({ error: 'Email service is not configured. Please contact support.' });
+    }
+
+    const otp = generateOtp();
+    otpStore.set(normalizedPhone, { otp, email: email.trim(), expiresAt: Date.now() + OTP_EXPIRY_MS });
+
+    try {
+      await transport.sendMail({
+        from: `"VigyanShaala STEM Builder" <${process.env.SMTP_EMAIL}>`,
+        to: email.trim(),
+        subject: 'Your Password Reset OTP — VigyanShaala',
+        html: `
+          <div style="font-family:Arial,sans-serif;max-width:480px;margin:0 auto;padding:24px;border:1px solid #e5e7eb;border-radius:12px">
+            <h2 style="color:#2c4869;margin:0 0 12px">Password Reset</h2>
+            <p style="color:#374151;font-size:14px;line-height:1.6">
+              Use the following OTP to reset your STEM Builder profile password:
+            </p>
+            <div style="text-align:center;margin:20px 0">
+              <span style="display:inline-block;font-size:32px;font-weight:900;letter-spacing:8px;color:#f58434;background:#fef3e2;padding:12px 24px;border-radius:8px">
+                ${otp}
+              </span>
+            </div>
+            <p style="color:#6b7280;font-size:12px;line-height:1.5">
+              This OTP expires in <strong>10 minutes</strong>. If you did not request this, please ignore this email.
+            </p>
+            <hr style="border:none;border-top:1px solid #e5e7eb;margin:16px 0"/>
+            <p style="color:#9ca3af;font-size:11px;text-align:center">VigyanShaala Community Science</p>
+          </div>
+        `,
+      });
+      console.log(`[otp] Sent OTP to ${email.trim()} for phone ${normalizedPhone}`);
+      res.json({ success: true });
+    } catch (err) {
+      console.error('[otp] Failed to send email:', err);
+      otpStore.delete(normalizedPhone);
+      res.status(500).json({ error: 'Failed to send OTP email. Please check the email address and try again.' });
+    }
+  });
+
+  // Confirm password reset — verify OTP and update password
+  app.post('/api/auth/reset-password-confirm', async (req, res) => {
+    const { phone, otp, newPassword } = req.body as { phone?: string; otp?: string; newPassword?: string };
+    const normalizedPhone = normalizePhone(phone || '');
+    if (!normalizedPhone || !otp || !newPassword) {
+      return res.status(400).json({ error: 'Phone, OTP, and new password are required' });
+    }
+
+    const stored = otpStore.get(normalizedPhone);
+    if (!stored) {
+      return res.status(400).json({ error: 'No OTP was requested for this number. Please request a new one.' });
+    }
+    if (Date.now() > stored.expiresAt) {
+      otpStore.delete(normalizedPhone);
+      return res.status(400).json({ error: 'OTP has expired. Please request a new one.' });
+    }
+    if (stored.otp !== otp) {
+      return res.status(400).json({ error: 'Invalid OTP. Please check and try again.' });
+    }
+
+    try {
+      const hashed = await bcrypt.hash(newPassword, 10);
+      db.prepare('UPDATE users SET password = ? WHERE phone = ?').run(hashed, normalizedPhone);
+      otpStore.delete(normalizedPhone);
+      res.json({ success: true });
+    } catch (err) {
+      console.error('[otp] Password update failed:', err);
+      res.status(500).json({ error: 'Failed to update password' });
+    }
   });
 
   // Append full profile (+ chat prefs) to Google Sheet as one dataframe row

@@ -416,7 +416,7 @@ const ReviewPage: React.FC<Props> = ({
             <InfoBlock label="Institution" value={profile.collegeName} />
             <InfoBlock label="Degree Path" value={`${profile.degreeType} in ${specDisplay}`} />
             <InfoBlock label="Year of Study" value={profile.yearOfStudy === 'Alumnus' && profile.graduationYear ? `Alumnus (Graduated: ${profile.graduationYear})` : profile.yearOfStudy} />
-            <InfoBlock label="Current CGPA" value={profile.cgpa} />
+            <InfoBlock label="CGPA" value={profile.cgpa} />
           </div>
         </section>
 

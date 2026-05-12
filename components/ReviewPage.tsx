@@ -17,6 +17,7 @@ interface Props {
 
 const VIGYAN_SHAALA_LOGO = '/images/log.png';
 const STORAGE_KEY = 'vs_reflection_profile';
+const SYNC_COMPLETE_KEY = 'profile_sync_completed';
 
 const ReviewPage: React.FC<Props> = ({
   profile,
@@ -226,7 +227,8 @@ const ReviewPage: React.FC<Props> = ({
       setSyncUserType(apiUserType);
 
       updateProfile({ lastSyncedAt: now });
-      localStorage.setItem(STORAGE_KEY, JSON.stringify({ ...profile, lastSyncedAt: now }));
+      localStorage.setItem(SYNC_COMPLETE_KEY, 'true');
+      localStorage.removeItem(STORAGE_KEY);
       setCurieSuccess(true);
       setShowSyncSuccessModal(true);
     } catch (e) {
@@ -245,11 +247,13 @@ const ReviewPage: React.FC<Props> = ({
       const noPrintEls = el.querySelectorAll<HTMLElement>('.no-print');
       noPrintEls.forEach((node) => (node.style.display = 'none'));
 
+      const isMobile = /Android|iPhone|iPad|iPod/i.test(navigator.userAgent);
       const canvas = await html2canvas(el, {
-        scale: 2,
+        scale: isMobile ? 1.5 : 2,
         useCORS: true,
         backgroundColor: '#ffffff',
         logging: false,
+        windowWidth: Math.max(el.scrollWidth, 900),
       });
 
       noPrintEls.forEach((node) => (node.style.display = ''));
@@ -261,11 +265,10 @@ const ReviewPage: React.FC<Props> = ({
       const imgHeight = (canvas.height * contentWidth) / canvas.width;
 
       const pdf = new jsPDF('p', 'mm', 'a4');
-      let y = margin;
       let remaining = imgHeight;
 
       while (remaining > 0) {
-        if (y !== margin) pdf.addPage();
+        if (remaining !== imgHeight) pdf.addPage();
         const usable = pageHeight - margin * 2;
         const sourceY = ((imgHeight - remaining) / imgHeight) * canvas.height;
         const sliceH = Math.min(usable, remaining);
@@ -281,14 +284,30 @@ const ReviewPage: React.FC<Props> = ({
         const sliceData = sliceCanvas.toDataURL('image/png');
         pdf.addImage(sliceData, 'PNG', margin, margin, contentWidth, sliceH);
         remaining -= usable;
-        y = margin;
       }
 
       const name = (profile.fullName || 'profile').replace(/\s+/g, '_');
-      pdf.save(`${name}_STEM_Profile.pdf`);
+      const fileName = `${name}_STEM_Profile.pdf`;
+
+      if (isMobile) {
+        const blob = pdf.output('blob');
+        const blobUrl = URL.createObjectURL(blob);
+        const link = document.createElement('a');
+        link.href = blobUrl;
+        link.download = fileName;
+        link.style.display = 'none';
+        document.body.appendChild(link);
+        link.click();
+        setTimeout(() => {
+          document.body.removeChild(link);
+          URL.revokeObjectURL(blobUrl);
+        }, 500);
+      } else {
+        pdf.save(fileName);
+      }
     } catch (err) {
       console.error('PDF generation failed:', err);
-      window.print();
+      try { window.print(); } catch { /* no-op */ }
     } finally {
       setIsGeneratingPdf(false);
     }
@@ -313,6 +332,9 @@ const ReviewPage: React.FC<Props> = ({
     try {
       await fetch('/api/auth/logout', { method: 'POST', credentials: 'include' });
     } catch { /* best-effort */ }
+
+    localStorage.setItem(SYNC_COMPLETE_KEY, 'true');
+    localStorage.removeItem(STORAGE_KEY);
     sessionStorage.clear();
 
     window.location.href = url;

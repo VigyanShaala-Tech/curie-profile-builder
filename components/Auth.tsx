@@ -154,7 +154,7 @@ function PhoneField({
           }
         }}
         className="flex-1 min-w-0 border-0 outline-none pl-2 text-[#2c4869] text-lg font-semibold bg-transparent"
-        placeholder="Registered Phone Number"
+        placeholder="Registered Whatsapp Number"
       />
     </div>
   );

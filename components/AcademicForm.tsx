@@ -354,7 +354,7 @@ const AcademicForm: React.FC<Props> = ({
           {step === 4 && (
             <TypeformSlide slideKey={4}>
               <label className={typeformLabelClass}>
-                {profile.academicStatus === 'studying' ? 'Current CGPA / Percentage' : 'CGPA / Percentage'} <span className="text-red-500">*</span>
+                CGPA / Percentage <span className="text-red-500">*</span>
               </label>
               <p className="text-xs text-slate-500 mb-4">Please provide either your CGPA or Percentage.</p>
               <div className="space-y-4">
@@ -740,7 +740,7 @@ const AcademicForm: React.FC<Props> = ({
             {(!readOnly || profile.cgpa) && (
               <div>
                 <label className="block text-sm font-bold text-[#2c4869] mb-2 tracking-tight">
-                  {profile.academicStatus === 'studying' ? 'Current CGPA / Percentage' : 'CGPA / Percentage'}
+                  CGPA / Percentage
                 </label>
                 <p className="text-xs text-slate-500 mb-2">Please provide either your CGPA or Percentage.</p>
                 <div className="space-y-3">

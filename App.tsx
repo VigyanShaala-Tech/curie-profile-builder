@@ -1016,43 +1016,7 @@ const App: React.FC = () => {
     <div className="min-h-screen bg-[#9DD3AF] flex flex-col pb-32 overflow-x-hidden">
       <EmojiBurst trigger={showMilestoneBurst} emojis={currentBurstEmojis} />
       
-      <AnimatePresence>
-        {successToast && (
-          <motion.div 
-            key="success-toast"
-            initial={{ opacity: 0, y: 50, scale: 0.9 }}
-            animate={{ opacity: 1, y: 0, scale: 1 }}
-            exit={{ opacity: 0, y: 20, scale: 0.9 }}
-            className="fixed bottom-12 left-1/2 -translate-x-1/2 z-[60] pointer-events-none"
-          >
-            <div className="bg-[#2c4869] text-white px-6 py-3 rounded-2xl shadow-2xl flex items-center gap-3 border border-white/20 backdrop-blur-md">
-              <div className="flex items-center justify-center w-8 h-8 rounded-full bg-white/20 text-xl">
-                👏
-              </div>
-              <div className="flex flex-col">
-                <span className="text-[10px] font-black uppercase tracking-widest opacity-60 leading-none mb-1">Section Update</span>
-                <span className="text-sm font-black tracking-tight">{successToast.message}</span>
-              </div>
-            </div>
-          </motion.div>
-        )}
-      </AnimatePresence>
-
-      <AnimatePresence>
-        {avatarGrowthToast && (
-          <motion.div
-            key={avatarGrowthToast}
-            initial={{ opacity: 0, y: -10, scale: 0.96 }}
-            animate={{ opacity: 1, y: 0, scale: 1 }}
-            exit={{ opacity: 0, y: -6, scale: 0.98 }}
-            className="fixed top-24 right-6 z-[70]"
-          >
-            <div className="rounded-xl bg-[#2c4869] text-white text-xs font-bold px-4 py-2 shadow-lg">
-              {avatarGrowthToast}
-            </div>
-          </motion.div>
-        )}
-      </AnimatePresence>
+      
       
       <header className="sticky top-0 z-30 bg-[#9DD3AF] shadow-sm">
         <div className="max-w-6xl mx-auto px-4 sm:px-6 py-3 flex items-center justify-between gap-4">

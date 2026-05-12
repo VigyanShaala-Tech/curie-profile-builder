@@ -394,7 +394,7 @@ const AcademicForm: React.FC<Props> = ({
                       onKeyDown={onKeyDown}
                       inputMode="decimal"
                       placeholder="0.0"
-                      className="w-20 text-right text-sm font-bold text-[#f58434] bg-transparent border border-[#f58434]/30 rounded-md px-2 py-1 outline-none focus:border-[#f58434]"
+                      className="w-20 text-right text-sm font-bold text-[#f58434] bg-white border border-[#f58434]/30 rounded-md px-2 py-1 outline-none focus:border-[#f58434]"
                     />
                   </div>
                   <input

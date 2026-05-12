@@ -28,6 +28,7 @@ import confetti from 'canvas-confetti';
 
 const VIGYAN_SHAALA_LOGO = '/images/log.png';
 const STORAGE_KEY = 'vs_reflection_profile';
+const SYNC_COMPLETE_KEY = 'profile_sync_completed';
 const STRICT_EMAIL_REGEX = /^[A-Za-z0-9._%+-]+@(gmail\.com|yahoo\.com|outlook\.com)$/i;
 const LEVEL_1_SECTIONS: Section[] = [Section.BASIC, Section.ACADEMIC, Section.SKILLS, Section.MILESTONES];
 const LEVEL_2_SECTIONS: Section[] = [Section.REFLECTIONS, Section.REVIEW];
@@ -136,6 +137,13 @@ const App: React.FC = () => {
   useEffect(() => {
     const checkAuth = async () => {
       try {
+        // If a previous session completed sync, wipe its profile so the
+        // next user on this device starts fresh.
+        if (localStorage.getItem(SYNC_COMPLETE_KEY) === 'true') {
+          localStorage.removeItem(STORAGE_KEY);
+          localStorage.removeItem(SYNC_COMPLETE_KEY);
+        }
+
         const res = await fetch('/api/auth/me');
         if (res.ok) {
           const data = await res.json();
@@ -967,6 +975,13 @@ const App: React.FC = () => {
       setIsAuthenticated(true); 
       setIsReturningSession(Boolean(payload.isReturningUser));
 
+      // Clear any leftover completed-session data so a new user on the
+      // same device doesn't inherit the previous user's profile.
+      if (localStorage.getItem(SYNC_COMPLETE_KEY) === 'true') {
+        localStorage.removeItem(STORAGE_KEY);
+        localStorage.removeItem(SYNC_COMPLETE_KEY);
+      }
+
       if (payload.isReturningUser) {
         const hydrated = hydrateProfileData(payload.existingRow);
         if (hydrated) {
@@ -974,12 +989,20 @@ const App: React.FC = () => {
         }
       }
 
-      // New-user path remains unchanged.
+      // New-user path: restore unfinished draft if the phone matches,
+      // otherwise start fresh.
       const saved = localStorage.getItem(STORAGE_KEY);
       if (saved) {
         try {
           const parsed = JSON.parse(saved);
-          handleStart(parsed);
+          const draftPhone = (parsed.whatsappNumber || '').replace(/\D/g, '');
+          const loginPhone = (payload.user?.phone || '').replace(/\D/g, '');
+          if (draftPhone && loginPhone && draftPhone !== loginPhone) {
+            localStorage.removeItem(STORAGE_KEY);
+            handleStart();
+          } else {
+            handleStart(parsed);
+          }
         } catch (e) {
           handleStart();
         }

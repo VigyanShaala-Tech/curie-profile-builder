@@ -1,7 +1,7 @@
 
 import React, { useState, useRef, useEffect, useMemo, useCallback } from 'react';
 import { AnimatePresence } from 'motion/react';
-import { Pencil, FolderGit2, Award, BookOpen } from 'lucide-react';
+import { Pencil, FolderGit2, Award, BookOpen, Trash2 } from 'lucide-react';
 import { TypeformSlide, TypeformNav, TypeformToggleGroup, typeformInputClass, typeformLabelClass, formFieldErrorClass } from './TypeformSlide';
 import { Profile, MilestoneDetail, ProjectDetail } from '../types';
 import {
@@ -97,26 +97,15 @@ interface UnifiedEntry {
 
 type DraftPointer = { type: EntryType; index: number } | null;
 
+/** Only `isSaved === false` is an active draft. `undefined` means legacy/saved data (must not shadow a new exam/cert row). */
 const findFirstUnsaved = (profile: Profile): DraftPointer => {
-  const pi = profile.projects.findIndex(p => p.isSaved !== true);
+  const pi = profile.projects.findIndex((p) => p.isSaved === false);
   if (pi >= 0) return { type: 'project', index: pi };
-  const ci = profile.certifications.findIndex(c => c.isSaved !== true);
+  const ci = profile.certifications.findIndex((c) => c.isSaved === false);
   if (ci >= 0) return { type: 'certification', index: ci };
-  const ei = profile.exams.findIndex(e => e.isSaved !== true);
+  const ei = profile.exams.findIndex((e) => e.isSaved === false);
   if (ei >= 0) return { type: 'exam', index: ei };
   return null;
-};
-
-const milestoneMandatoryOk = (profile: Profile) => {
-  const hasAny =
-    profile.projects.length > 0 || profile.exams.length > 0 || profile.certifications.length > 0;
-  if (!hasAny) return false;
-  const projectsOk = profile.projects.every(
-    p => !p.name.trim() || (p.name.trim() && !!p.status)
-  );
-  const examsOk = profile.exams.every(e => !e.name.trim() || (e.name.trim() && !!e.status));
-  const certsOk = profile.certifications.every(c => !c.name.trim() || (c.name.trim() && !!c.status));
-  return projectsOk && examsOk && certsOk;
 };
 
 const MilestoneForm: React.FC<Props> = ({
@@ -141,8 +130,11 @@ const MilestoneForm: React.FC<Props> = ({
   const addProject = () => {
     if (readOnly) return;
     setMilestoneStatusShowNext(false);
-    const next = profile.projects.map(p => ({ ...p, isSaved: true }));
-    updateProfile({ projects: [...next, { name: '', status: '', details: '', isSaved: false }] });
+    updateProfile({
+      projects: [...profile.projects.map((p) => ({ ...p, isSaved: true })), { name: '', status: '', details: '', isSaved: false }],
+      certifications: profile.certifications.map((c) => ({ ...c, isSaved: true })),
+      exams: profile.exams.map((e) => ({ ...e, isSaved: true })),
+    });
   };
 
   const removeProject = (index: number) => {
@@ -162,8 +154,11 @@ const MilestoneForm: React.FC<Props> = ({
   const addExam = () => {
     if (readOnly) return;
     setMilestoneStatusShowNext(false);
-    const next = profile.exams.map(e => ({ ...e, isSaved: true }));
-    updateProfile({ exams: [...next, { name: '', status: '', details: '', isSaved: false }] });
+    updateProfile({
+      exams: [...profile.exams.map((e) => ({ ...e, isSaved: true })), { name: '', status: '', details: '', isSaved: false }],
+      projects: profile.projects.map((p) => ({ ...p, isSaved: true })),
+      certifications: profile.certifications.map((c) => ({ ...c, isSaved: true })),
+    });
   };
 
   const removeExam = (index: number) => {
@@ -183,8 +178,14 @@ const MilestoneForm: React.FC<Props> = ({
   const addCertification = () => {
     if (readOnly) return;
     setMilestoneStatusShowNext(false);
-    const next = profile.certifications.map(c => ({ ...c, isSaved: true }));
-    updateProfile({ certifications: [...next, { name: '', status: '', details: '', isSaved: false }] });
+    updateProfile({
+      certifications: [
+        ...profile.certifications.map((c) => ({ ...c, isSaved: true })),
+        { name: '', status: '', details: '', isSaved: false },
+      ],
+      projects: profile.projects.map((p) => ({ ...p, isSaved: true })),
+      exams: profile.exams.map((e) => ({ ...e, isSaved: true })),
+    });
   };
 
   const removeCertification = (index: number) => {
@@ -225,17 +226,12 @@ const MilestoneForm: React.FC<Props> = ({
     if (msStep >= 1 && msStep <= 3 && !draftPtr) setMsStep(0);
   }, [draftPtr, msStep, typeform, readOnly]);
 
-  const savedProjectCount = useMemo(
-    () =>
-      profile.projects.filter((p) => (p?.name || '').trim().length > 0 && p.isSaved !== false).length,
-    [profile.projects]
-  );
-
+  /** Any row with a title (project, certification, or exam) — enough to continue to the next section. */
   const savedMilestoneCount = useMemo(
     () =>
-      profile.projects.filter((p) => (p?.name || '').trim().length > 0 && p.isSaved !== false).length +
-      profile.certifications.filter((c) => (c?.name || '').trim().length > 0 && c.isSaved !== false).length +
-      profile.exams.filter((e) => (e?.name || '').trim().length > 0 && e.isSaved !== false).length,
+      profile.projects.filter((p) => (p?.name || '').trim().length > 0).length +
+      profile.certifications.filter((c) => (c?.name || '').trim().length > 0).length +
+      profile.exams.filter((e) => (e?.name || '').trim().length > 0).length,
     [profile.projects, profile.certifications, profile.exams]
   );
 
@@ -245,15 +241,10 @@ const MilestoneForm: React.FC<Props> = ({
       setMilestoneStep0Kind('mandatory');
       return;
     }
-    if (!milestoneMandatoryOk(profile)) {
-      setAttemptedNext(true);
-      setMilestoneStep0Kind('mandatory');
-      return;
-    }
     setMilestoneStep0Kind(null);
     setAttemptedNext(false);
     onCompleteSection?.();
-  }, [profile, savedMilestoneCount, onCompleteSection]);
+  }, [savedMilestoneCount, onCompleteSection]);
 
   useEffect(() => {
     if (!typeform || readOnly) return;
@@ -304,6 +295,30 @@ const MilestoneForm: React.FC<Props> = ({
       else onBackFromFirst?.();
     };
 
+    const entry = getDraftEntry();
+    let titleLabel = '';
+    let titlePlaceholder = '';
+    let statusOptions: string[] = [];
+    let typeLabel = '';
+    if (entry) {
+      if (entry.type === 'project') {
+        titleLabel = 'Project title';
+        titlePlaceholder = 'e.g. Rainfall prediction model';
+        statusOptions = PROJECT_STATUS_OPTIONS;
+        typeLabel = 'Project';
+      } else if (entry.type === 'certification') {
+        titleLabel = 'Certification name';
+        titlePlaceholder = 'e.g. AWS Solutions Architect';
+        statusOptions = CERTIFICATION_STATUS_OPTIONS;
+        typeLabel = 'Certification';
+      } else {
+        titleLabel = 'Exam name';
+        titlePlaceholder = 'e.g. GATE, GRE';
+        statusOptions = EXAM_STATUS_OPTIONS;
+        typeLabel = 'Exam';
+      }
+    }
+
     const goNextMs = () => {
       if (msStep === 1) {
         setAttemptedNext(true);
@@ -314,19 +329,13 @@ const MilestoneForm: React.FC<Props> = ({
         return;
       }
       if (msStep === 2) {
-        setAttemptedNext(true);
         const e = getDraftEntry();
-        const statusOpts =
-          e?.type === 'project'
-            ? PROJECT_STATUS_OPTIONS
-            : e?.type === 'certification'
-              ? CERTIFICATION_STATUS_OPTIONS
-              : EXAM_STATUS_OPTIONS;
-        if (
-          !e ||
-          !normalizeMilestoneStatus((e.data as MilestoneDetail).status, statusOpts)
-        )
+        if (!e) return;
+        const st = normalizeMilestoneStatus((e.data as MilestoneDetail).status, statusOptions);
+        if (!st.trim() || !statusOptions.includes(st)) {
+          setAttemptedNext(true);
           return;
+        }
         setAttemptedNext(false);
         setMsStep(3);
         return;
@@ -342,7 +351,6 @@ const MilestoneForm: React.FC<Props> = ({
 
     goNextMsRef.current = goNextMs;
 
-    const entry = getDraftEntry();
     const savedProjects = profile.projects
       .map((p, i) => ({ ...p, index: i }))
       .filter((p: any) => p?.name?.trim() && p.isSaved !== false);
@@ -378,28 +386,10 @@ const MilestoneForm: React.FC<Props> = ({
       setTimeout(() => setMsStep(1), 120);
     };
 
-    let titleLabel = '';
-    let titlePlaceholder = '';
-    let statusOptions: string[] = [];
-    let typeLabel = '';
-    if (entry) {
-      if (entry.type === 'project') {
-        titleLabel = 'Project title';
-        titlePlaceholder = 'e.g. Rainfall prediction model';
-        statusOptions = PROJECT_STATUS_OPTIONS;
-        typeLabel = 'Project';
-      } else if (entry.type === 'certification') {
-        titleLabel = 'Certification name';
-        titlePlaceholder = 'e.g. AWS Solutions Architect';
-        statusOptions = CERTIFICATION_STATUS_OPTIONS;
-        typeLabel = 'Certification';
-      } else {
-        titleLabel = 'Exam name';
-        titlePlaceholder = 'e.g. GATE, GRE';
-        statusOptions = EXAM_STATUS_OPTIONS;
-        typeLabel = 'Exam';
-      }
-    }
+    const typeformStatusNormalized = entry
+      ? normalizeMilestoneStatus((entry.data as MilestoneDetail).status, statusOptions)
+      : '';
+    const typeformStatusComplete = !!entry && statusOptions.length > 0 && statusOptions.includes(typeformStatusNormalized);
 
     return (
       <div className="min-h-[50vh] flex flex-col justify-center px-1 pb-8">
@@ -456,52 +446,88 @@ const MilestoneForm: React.FC<Props> = ({
               <div className="mt-5 space-y-4">
                 <div className="space-y-2">
                   {savedProjects.map((p: any) => (
-                    <div key={`proj-${p.index}`} className="flex items-center justify-between rounded-xl border border-slate-200 bg-white px-3 py-2">
-                      <div className="min-w-0">
+                    <div key={`proj-${p.index}`} className="flex items-center justify-between gap-2 rounded-xl border border-slate-200 bg-white px-3 py-2">
+                      <div className="min-w-0 flex-1">
                         <p className="text-sm font-bold text-[#2c4869] truncate">Project Title: {p.name}</p>
                         <p className="text-xs text-slate-600">Status: {p.status || '—'}</p>
                       </div>
-                      <button
-                        type="button"
-                        onClick={() => editSpecificEntry('project', p.index)}
-                        className="ml-3 text-xs font-bold text-[#2c4869] underline underline-offset-2"
-                      >
-                        Edit
-                      </button>
+                      <div className="flex items-center gap-1 shrink-0">
+                        <button
+                          type="button"
+                          onClick={() => editSpecificEntry('project', p.index)}
+                          className="text-xs font-bold text-[#2c4869] underline underline-offset-2 px-1 py-1"
+                        >
+                          Edit
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            if (window.confirm('Remove this project from your profile?')) removeProject(p.index);
+                          }}
+                          className="p-1.5 rounded-lg text-slate-400 hover:text-red-600 hover:bg-red-50 transition-colors"
+                          aria-label="Delete project"
+                        >
+                          <Trash2 className="w-4 h-4" strokeWidth={2} />
+                        </button>
+                      </div>
                     </div>
                   ))}
                 </div>
                 <div className="space-y-2">
                   {savedCertifications.map((c: any) => (
-                    <div key={`cert-${c.index}`} className="flex items-center justify-between rounded-xl border border-slate-200 bg-white px-3 py-2">
-                      <div className="min-w-0">
+                    <div key={`cert-${c.index}`} className="flex items-center justify-between gap-2 rounded-xl border border-slate-200 bg-white px-3 py-2">
+                      <div className="min-w-0 flex-1">
                         <p className="text-sm font-bold text-[#2c4869] truncate">Certification Name: {c.name}</p>
                         <p className="text-xs text-slate-600">Status / Completion: {c.status || '—'}</p>
                       </div>
-                      <button
-                        type="button"
-                        onClick={() => editSpecificEntry('certification', c.index)}
-                        className="ml-3 text-xs font-bold text-[#2c4869] underline underline-offset-2"
-                      >
-                        Edit
-                      </button>
+                      <div className="flex items-center gap-1 shrink-0">
+                        <button
+                          type="button"
+                          onClick={() => editSpecificEntry('certification', c.index)}
+                          className="text-xs font-bold text-[#2c4869] underline underline-offset-2 px-1 py-1"
+                        >
+                          Edit
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            if (window.confirm('Remove this certification from your profile?')) removeCertification(c.index);
+                          }}
+                          className="p-1.5 rounded-lg text-slate-400 hover:text-red-600 hover:bg-red-50 transition-colors"
+                          aria-label="Delete certification"
+                        >
+                          <Trash2 className="w-4 h-4" strokeWidth={2} />
+                        </button>
+                      </div>
                     </div>
                   ))}
                 </div>
                 <div className="space-y-2">
                   {savedExams.map((e: any) => (
-                    <div key={`exam-${e.index}`} className="flex items-center justify-between rounded-xl border border-slate-200 bg-white px-3 py-2">
-                      <div className="min-w-0">
+                    <div key={`exam-${e.index}`} className="flex items-center justify-between gap-2 rounded-xl border border-slate-200 bg-white px-3 py-2">
+                      <div className="min-w-0 flex-1">
                         <p className="text-sm font-bold text-[#2c4869] truncate">Exam Name: {e.name}</p>
                         <p className="text-xs text-slate-600">Score / Status: {e.status || '—'}</p>
                       </div>
-                      <button
-                        type="button"
-                        onClick={() => editSpecificEntry('exam', e.index)}
-                        className="ml-3 text-xs font-bold text-[#2c4869] underline underline-offset-2"
-                      >
-                        Edit
-                      </button>
+                      <div className="flex items-center gap-1 shrink-0">
+                        <button
+                          type="button"
+                          onClick={() => editSpecificEntry('exam', e.index)}
+                          className="text-xs font-bold text-[#2c4869] underline underline-offset-2 px-1 py-1"
+                        >
+                          Edit
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            if (window.confirm('Remove this exam from your profile?')) removeExam(e.index);
+                          }}
+                          className="p-1.5 rounded-lg text-slate-400 hover:text-red-600 hover:bg-red-50 transition-colors"
+                          aria-label="Delete exam"
+                        >
+                          <Trash2 className="w-4 h-4" strokeWidth={2} />
+                        </button>
+                      </div>
                     </div>
                   ))}
                 </div>
@@ -510,13 +536,11 @@ const MilestoneForm: React.FC<Props> = ({
                 showBack={!!onBackFromFirst}
                 onBack={goBackMs}
                 onNext={handleMilestoneStep0Next}
-                nextLabel={savedMilestoneCount >= 1 && milestoneMandatoryOk(profile) ? 'Continue' : 'Next'}
+                nextLabel={savedMilestoneCount >= 1 ? 'Continue' : 'Next'}
               />
               {attemptedNext && msStep === 0 && milestoneStep0Kind === 'mandatory' && (
                 <p className={formFieldErrorClass}>
-                  {savedMilestoneCount < 1
-                    ? 'Please add at least one project, certification, or exam to continue.'
-                    : 'Choose a type above or finish a draft entry'}
+                  Please add at least one project, certification, or exam (enter a title) to continue.
                 </p>
               )}
             </TypeformSlide>
@@ -558,22 +582,17 @@ const MilestoneForm: React.FC<Props> = ({
                 onSelect={(value) => {
                   updateDraft({ status: value });
                   setAttemptedNext(false);
-                  if (!typeformResumeEdit) setTimeout(() => setMsStep(3), 120);
                 }}
                 options={statusOptions.map((opt) => ({ label: opt, value: opt }))}
               />
-              {attemptedNext &&
-                !normalizeMilestoneStatus((entry.data as MilestoneDetail).status, statusOptions) && (
-                <p className={formFieldErrorClass}>Please select a status</p>
+              {attemptedNext && !typeformStatusComplete && (
+                <p className={formFieldErrorClass}>Please choose a status to continue</p>
               )}
               <TypeformNav
                 showBack
                 onBack={goBackMs}
                 onNext={goNextMs}
-                hideNext={!(typeformResumeEdit || milestoneStatusShowNext)}
-                nextDisabled={
-                  !normalizeMilestoneStatus((entry.data as MilestoneDetail).status, statusOptions)
-                }
+                hideNext={!typeformStatusComplete}
               />
             </TypeformSlide>
           )}
@@ -742,7 +761,7 @@ const MilestoneForm: React.FC<Props> = ({
                         {name.trim().length > 0 && (
                           <div className="animate-in slide-in-from-top-1 duration-200 space-y-4">
                             <div className="space-y-1">
-                              <label className="text-[10px] font-black text-[#2c4869]/60 uppercase tracking-widest">Status <span className="text-red-500 ml-1">*</span></label>
+                              <label className="text-[10px] font-black text-[#2c4869]/60 uppercase tracking-widest">Status <span className="text-red-500 ml-0.5">*</span></label>
                               <select
                                 value={status}
                                 onChange={(e) => handleUpdate({ status: e.target.value })}
@@ -757,7 +776,7 @@ const MilestoneForm: React.FC<Props> = ({
                               {getError(`${type}Status_${index}`) && <p className={formFieldErrorClass}>{getError(`${type}Status_${index}`)}</p>}
                             </div>
 
-                            {status && (
+                            {name.trim().length > 0 && (
                               <div className="space-y-1 animate-in slide-in-from-top-1 duration-200">
                                 <label className="text-[10px] font-black text-[#2c4869]/60 uppercase tracking-widest">Add details (optional)</label>
                                 <AutoTextarea 
@@ -792,7 +811,7 @@ const MilestoneForm: React.FC<Props> = ({
                         {!isSaved && (
                           <button
                             onClick={() => handleUpdate({ isSaved: true })}
-                            disabled={name.trim().length === 0 || status.trim().length === 0}
+                            disabled={name.trim().length === 0 || !statusOptions.includes(status)}
                             className="px-4 py-2 bg-[#f58434] text-white rounded-lg text-xs font-black uppercase tracking-widest hover:bg-[#f58434]/90 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
                           >
                             Save

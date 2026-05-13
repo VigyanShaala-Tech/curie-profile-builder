@@ -39,7 +39,7 @@ type TypeformToggleGroupProps = {
   options: ToggleOption[];
   value: string;
   onSelect: (value: string) => void;
-  columns?: 1 | 2;
+  columns?: 1 | 2 | 3;
 };
 
 export const TypeformToggleGroup: React.FC<TypeformToggleGroupProps> = ({
@@ -47,27 +47,36 @@ export const TypeformToggleGroup: React.FC<TypeformToggleGroupProps> = ({
   value,
   onSelect,
   columns = 1,
-}) => (
-  <div className={`grid gap-2 ${columns === 2 ? 'grid-cols-1 sm:grid-cols-2' : 'grid-cols-1'}`}>
-    {options.map((option) => {
-      const active = value === option.value;
-      return (
-        <button
-          key={option.value}
-          type="button"
-          onClick={() => onSelect(option.value)}
-          className={`w-full text-left px-4 py-3 rounded-2xl border-2 font-semibold text-sm transition-all ${
-            active
-              ? 'border-[#f58434] bg-[#f58434] text-white shadow-sm'
-              : 'border-slate-200 text-[#2c4869] hover:border-[#f58434]/40 hover:bg-[#f58434]/10'
-          }`}
-        >
-          {option.label}
-        </button>
-      );
-    })}
-  </div>
-);
+}) => {
+  const gridClass =
+    columns === 3
+      ? 'grid-cols-1 sm:grid-cols-2 lg:grid-cols-3'
+      : columns === 2
+        ? 'grid-cols-1 sm:grid-cols-2'
+        : 'grid-cols-1';
+
+  return (
+    <div className={`grid gap-2 ${gridClass}`}>
+      {options.map((option) => {
+        const active = value === option.value;
+        return (
+          <button
+            key={option.value}
+            type="button"
+            onClick={() => onSelect(option.value)}
+            className={`w-full text-left px-4 py-3 rounded-2xl border-2 font-semibold text-sm transition-all ${
+              active
+                ? 'border-[#f58434] bg-[#f58434] text-white shadow-sm'
+                : 'border-slate-200 text-[#2c4869] hover:border-[#f58434]/40 hover:bg-[#f58434]/10'
+            }`}
+          >
+            {option.label}
+          </button>
+        );
+      })}
+    </div>
+  );
+};
 
 type TypeformNavProps = {
   showBack: boolean;

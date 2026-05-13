@@ -109,6 +109,7 @@ function profileToSheetsRowObject(
   const reflections = {
     purpose: normalizeString(r.impactPurpose),
     strengths: normalizeString(r.strengths),
+    curiosity: normalizeString(r.curiosity),
     challenges: normalizeString(r.grittyGrowth),
     actions: normalizeString(r.spark),
     opportunities: normalizeString(r.opportunities),
@@ -145,6 +146,7 @@ function profileToSheetsRowObject(
     certifications: milestones.certifications,
     purpose: normalizeString(r.impactPurpose),
     strengths: normalizeString(r.strengths),
+    curiosity: normalizeString(r.curiosity),
     challenges: normalizeString(r.grittyGrowth),
     actions: normalizeString(r.spark),
     opportunities: normalizeString(r.opportunities),

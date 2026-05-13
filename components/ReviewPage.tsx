@@ -2,7 +2,7 @@
 import React, { useState, useMemo, useRef, useCallback } from 'react';
 import { Pencil } from 'lucide-react';
 import { Profile, Section } from '../types';
-import { REFLECTION_PROMPTS } from '../constants';
+import { REFLECTION_PROMPTS, getMilestoneStatusValidationError } from '../constants';
 import { motion, AnimatePresence } from 'motion/react';
 import html2canvas from 'html2canvas';
 import { jsPDF } from 'jspdf';
@@ -99,26 +99,17 @@ const ReviewPage: React.FC<Props> = ({
     
     if (!hasExpertise) missing.push({ section: Section.SKILLS, label: 'At least one Expertise area', mandatory: true });
 
-    // Milestones (At least one required)
-    const hasMilestones = 
-      profile.projects.length > 0 || 
-      profile.exams.length > 0 ||
-      profile.certifications.length > 0;
+    // Milestones: at least one title; each titled row needs a valid status
+    const hasMilestones =
+      profile.projects.some((p) => p.name.trim().length > 0) ||
+      profile.exams.some((e) => e.name.trim().length > 0) ||
+      profile.certifications.some((c) => c.name.trim().length > 0);
 
     if (!hasMilestones) missing.push({ section: Section.MILESTONES, label: 'At least one Project/Milestone/Cert', mandatory: true });
-
-    profile.projects.forEach(project => {
-      if (!project.name.trim()) missing.push({ section: Section.MILESTONES, label: `Project Title`, mandatory: true });
-      if (project.name.trim() && !project.status) missing.push({ section: Section.MILESTONES, label: `Status for ${project.name}`, mandatory: true });
-    });
-    profile.exams.forEach(exam => {
-      if (!exam.name.trim()) missing.push({ section: Section.MILESTONES, label: `Exam Name`, mandatory: true });
-      if (exam.name.trim() && !exam.status) missing.push({ section: Section.MILESTONES, label: `Status for ${exam.name}`, mandatory: true });
-    });
-    profile.certifications.forEach(cert => {
-      if (!cert.name.trim()) missing.push({ section: Section.MILESTONES, label: `Certification Name`, mandatory: true });
-      if (cert.name.trim() && !cert.status) missing.push({ section: Section.MILESTONES, label: `Status for ${cert.name}`, mandatory: true });
-    });
+    else {
+      const statusErr = getMilestoneStatusValidationError(profile);
+      if (statusErr) missing.push({ section: Section.MILESTONES, label: statusErr, mandatory: true });
+    }
 
     // Optional fields for completeness tracking (but not mandatory for sync)
     if (!profile.email) missing.push({ section: Section.BASIC, label: 'Email Address' });
@@ -144,22 +135,13 @@ const ReviewPage: React.FC<Props> = ({
       profile.aiSkills.length > 0 || 
       profile.professionalSkills.length > 0 ||
       profile.interests.length > 0;
-    const hasMilestones = 
-      profile.projects.length > 0 || 
-      profile.exams.length > 0 ||
-      profile.certifications.length > 0;
-    
-    const hasValidProjects = profile.projects.every(project => 
-      project.name.trim() && project.status
-    );
-    const hasValidExams = profile.exams.every(exam => 
-      exam.name.trim() && exam.status
-    );
-    const hasValidCerts = profile.certifications.every(cert => 
-      cert.name.trim() && cert.status
-    );
+    const hasMilestones =
+      profile.projects.some((p) => p.name.trim().length > 0) ||
+      profile.exams.some((e) => e.name.trim().length > 0) ||
+      profile.certifications.some((c) => c.name.trim().length > 0);
+    const milestonesOk = hasMilestones && !getMilestoneStatusValidationError(profile);
 
-    return hasIdentity && hasExpertise && hasMilestones && hasValidProjects && hasValidExams && hasValidCerts;
+    return hasIdentity && hasExpertise && milestonesOk;
   }, [profile]);
 
   const isLocked = !hasMandatoryFields;
@@ -461,13 +443,13 @@ const ReviewPage: React.FC<Props> = ({
         <section className="mb-10">
           <SectionHeader title="Your STEM Mindset" section={Section.REFLECTIONS} />
           <div className="space-y-6">
-            <InfoBlock label="The Purpose" value={profile.reflections.impactPurpose} />
-            <InfoBlock label="Your Superpower" value={profile.reflections.strengths} />
-            <InfoBlock label="The Curiosity" value={profile.reflections.curiosity} />
-            <InfoBlock label="The Gritty Growth" value={profile.reflections.grittyGrowth} />
-            <InfoBlock label="The Spark" value={profile.reflections.spark} />
-            <InfoBlock label="The Opportunities" value={profile.reflections.opportunities} />
-            <InfoBlock label="The Threats" value={profile.reflections.threats} />
+            <InfoBlock label="Your Purpose" value={profile.reflections.impactPurpose} />
+            <InfoBlock label="Your Strengths and Superpowers" value={profile.reflections.strengths} />
+            <InfoBlock label="Your Interests" value={profile.reflections.curiosity} />
+            <InfoBlock label="Challenges You are Currently Facing" value={profile.reflections.grittyGrowth} />
+            <InfoBlock label="Your Moments" value={profile.reflections.spark} />
+            <InfoBlock label="Your Opportunities" value={profile.reflections.opportunities} />
+            <InfoBlock label="Your Barriers" value={profile.reflections.threats} />
           </div>
         </section>
 

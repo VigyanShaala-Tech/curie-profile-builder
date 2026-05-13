@@ -200,7 +200,7 @@ function buildHydratedDataFromSheetRow(rowMap: Record<string, string>): {
     reflections: {
       impactPurpose: asString(profileJson.purpose || reflectionsJson.purpose),
       strengths: asString(profileJson.strengths || reflectionsJson.strengths),
-      curiosity: asString(profileJson.curiosity),
+      curiosity: asString(profileJson.curiosity || reflectionsJson.curiosity),
       grittyGrowth: asString(profileJson.challenges || reflectionsJson.challenges),
       spark: asString(profileJson.actions || reflectionsJson.actions),
       opportunities: asString(profileJson.opportunities || reflectionsJson.opportunities),

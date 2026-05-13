@@ -252,7 +252,7 @@ const AcademicForm: React.FC<Props> = ({
                 <span className="text-red-500">*</span>
               </label>
               <TypeformToggleGroup
-                columns={2}
+                columns={3}
                 value={profile.degreeType || ''}
                 onSelect={(value) => {
                   updateProfile({ degreeType: value });

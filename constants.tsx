@@ -16,16 +16,26 @@ export const getExpertiseAnsweredCount = (p: Profile): number =>
   ].filter(Boolean).length;
 
 export const DEGREE_OPTIONS = [
-  'B.Tech / B.E.',
-  'M.Tech / M.E.',
-  'B.Sc / B.S.',
-  'M.Sc / M.S.',
-  'BCA / MCA',
-  'Integrated M.Tech / M.Sc',
-  'B.Pharm / M.Pharm',
-  'B.Arch / M.Arch',
+  'B.E./B.Tech',
+  'BSc.',
+  'Integrated BS-MS or BSc-MSc',
+  'Integrated Dual Degree(BTech + MTech)',
+  'BCA/BCS',
+  'B.Arch',
+  'MSc.',
+  'M.E./M.Tech',
+  'MCS / MCA',
+  'M.Arch',
   'PhD',
-  'Diploma'
+  'B.Pharmacy',
+  'M.Pharma',
+  'MBA',
+  'B.Ed',
+  'M.Ed',
+  'MBBS',
+  'BAMS',
+  'BHMS',
+  'BPT',
 ];
 
 export const STEM_HIERARCHY: Record<string, Record<string, string[]>> = {
@@ -37,141 +47,155 @@ export const STEM_HIERARCHY: Record<string, Record<string, string[]>> = {
     "Biological Sciences": [
       "Biochemistry & Molecular Biology", "Genetics & Evolutionary Biology", "Neuroscience & Cognitive Sciences", 
       "Ecology & Environmental Biology", "Biomedical & Pharmaceutical Sciences", "Computational Biology & Bioinformatics", 
-      "Biotechnology", "Botany", "Zoology", "Immunology", "Microbiology"
+      "Biotechnology", "Botany", "Zoology", "Immunology", "Microbiology", "Animal Husbandry", "Biology"
     ],
     "Chemistry": [
       "Analytical Chemistry", "Computational Chemistry", "Inorganic Chemistry", "Medicinal Chemistry", 
-      "Nanotechnology & Materials Science", "Organic Chemistry", "Physical Chemistry", "Polymer Chemistry", "Pharmacy"
+      "Nanotechnology & Materials Science", "Organic Chemistry", "Physical Chemistry", "Polymer Chemistry", "Pharmacy", "Chemistry"
     ],
     "Computer Sciences and Application": [
       "Programming & Software Development", "Operating Systems & System Programming", 
       "Database Management Systems (DBMS)", "Web Development & Cloud Computing", 
       "Computer Networks & Security", "Embedded Systems & IoT", "Robotics & Automation", 
-      "Cybersecurity & Ethical Hacking", "Game Development & Graphics", "Computer Science"
+      "Cybersecurity & Ethical Hacking", "Game Development & Graphics", "Computer Science", "Computer Application"
     ],
     "Data Science, AI and ML": [
       "Data Science & Machine Learning", "Deep Learning & AI Applications", "Big Data & Data Engineering", 
-      "Natural Language Processing (NLP)", "Data Visualization & Business Intelligence", "Computer Vision"
+      "Natural Language Processing (NLP)", "Data Visualization & Business Intelligence", "Computer Vision", "Data Science", "Artificial Intelligence & Machine Learning", 
+      "Machine Learning", "Artificial Intelligence"
     ],
     "Earth & Environmental Sciences": [
       "Geology & Geophysics", "Climate, Ocean & Atmospheric Sciences", "Planetary & Space Sciences", 
       "Atmospheric Sciences", "Ecology & Conservation", "Environmental Chemistry & Toxicology", 
-      "Forestry", "Natural Resource Management"
+      "Forestry", "Natural Resource Management", "Earth Science", "Environmental Science"
     ],
     "Food Science": [
       "Food Microbiology", "Food Biotechnology", "Food Chemistry", "Food Toxicology", 
-      "Nutritional Biochemistry", "Food Processing", "Food Quality Control"
+      "Nutritional Biochemistry", "Food Processing", "Food Quality Control", "Food Science"
     ],
     "Forensics Science": [
       "Forensic Biology", "Forensic Chemistry & Toxicology", "Forensic Physics & Ballistics", "Cyber Forensics"
     ],
     "Mathematics & Statistics": [
       "Pure Mathematics", "Applied Mathematics", "Statistics & Probability", 
-      "Discrete Mathematics", "Mathematical Modeling & Applied Sciences"
+      "Discrete Mathematics", "Mathematical Modeling & Applied Sciences", "Mathematics", "Statistics"
     ],
     "Physics": [
       "Astrophysics", "Biophysics", "Computational Physics", "Nanotechnology & Materials Science", 
       "Mathematical Physics", "Medical Physics", "Optics & Photonics", "Theoretical Physics", 
-      "Space Science", "Fluid Mechanics", "Electronics"
+      "Space Science", "Fluid Mechanics", "Electronics", "Physics"
     ],
     "Psychology": [
       "Cognitive & Neuroscience Psychology", "Computational Psychology", "Human Factors & Ergonomics", 
       "Behavioral & Biological Psychology", "Forensic & Legal Psychology", "Industrial-Organizational Psychology", 
-      "Medical & Health Psychology"
+      "Medical & Health Psychology", "Psychology"
     ],
     "Material Sciences": [
       "Metallurgy", "Ceramics & Glass Science", "Polymer Science", "Energy Materials", 
       "Composite Material Science", "Electronic & Photonic Materials", "Biomaterials", 
-      "Computational Materials Science", "Electronic & Magnetic Materials"
+      "Computational Materials Science", "Electronic & Magnetic Materials", "Material Science"
+    ],
+    "Nursing": [
+      "Nursing"
+    ],
+    "Homeopathy": [
+      "Homeopathy"
+    ],
+    "Ayurveda": [
+      "Ayurveda"
+    ],
+    "Physiotherapy": [
+      "Physiotherapy"
     ]
+
   },
   "Engineering": {
     "Aeronautical Engineering": [
       "Aircraft Structures & Materials", "Aerodynamics & Fluid Mechanics", "Propulsion Systems", 
-      "Avionics & Flight Control", "Aircraft Design & Manufacturing"
+      "Avionics & Flight Control", "Aircraft Design & Manufacturing", "Aeronautical Engineering"
     ],
     "Aerospace Engineering": [
-      "Aerodynamics & Propulsion", "Spacecraft Design & Engineering", 
+      "Aerodynamics & Propulsion", "Spacecraft Design & Engineering", "Aerospace Engineering",
       "Orbital Mechanics & Space Propulsion", "Space Systems Engineering", "Rocket & Propulsion Technology"
     ],
     "Agricultural Engineering": [
-      "Farm Machinery & Mechanization", "Soil & Water Engineering", 
+      "Farm Machinery & Mechanization", "Soil & Water Engineering", "Agricultural Engineering",
       "Agricultural Structures & Environmental Control", "Food & Bioprocess Engineering", 
       "Renewable Energy in Agriculture", "Precision Agriculture & Smart Farming", 
       "Post-Harvest Technology", "Environmental & Waste Management Engineering"
     ],
     "Artificial Intelligence / Machine Learning": [
-      "AI in Finance"
+      "AI in Finance", "Artificial Intelligence/Machine Learning"
     ],
     "Automobile Engineering": [
       "Vehicle Design & Manufacturing", "Powertrain & Propulsion Systems", 
       "Automotive Electronics & AI", "Chassis & Vehicle Dynamics", "Safety & Crash Testing", 
-      "Sustainability & Alternative Fuels"
+      "Sustainability & Alternative Fuels", "Automobile Engineering"
     ],
-    "Biotechnology, Bioengineering & Biomedical Engineering": [
-      "Biotechnology", "Biomedical Engineering", "Genetic & Molecular Engineering", 
-      "Bioprocess & Biochemical Engineering", "Computational & Systems Bioengineering"
+    "Biotechnology, Bioengineering & Biomedical": [
+      "Bioengineering", "Biotechnology, Bioengineering & Biomedical", "Genetic & Molecular Engineering", 
+      "Bioprocess & Biochemical Engineering", "Computational & Systems Bioengineering", "Biomedical Engineering"
     ],
     "Chemical Engineering": [
       "Process Engineering", "Biochemical & Bioprocess Engineering", "Petroleum & Energy Engineering", 
       "Materials & Polymer Engineering", "Environmental & Sustainable Engineering", 
-      "Electrochemical Engineering", "Computational & Systems Engineering", "Thermodynamics & Transport Phenomena"
+      "Electrochemical Engineering", "Computational & Systems Engineering", "Thermodynamics & Transport Phenomena", "Chemical Engineering"
     ],
     "Civil Engineering": [
-      "Construction Engineering & Management", "Highway Engineering", "Structural Engineering", "Water Resources Engineering"
+      "Construction Engineering & Management", "Highway Engineering", "Structural Engineering", "Water Resources Engineering", "Civil Engineering"
     ],
     "Computer Science and Engineering (CSE)": [
-      "Cybersecurity", "Information Technology", "Computer Vision Engineering", "Blockchain Engineering"
+      "Cybersecurity", "Information and Technology", "Computer Vision Engineering", "Blockchain Engineering", "Computer Science and Engineering (CSE)"
     ],
     "Data Science and Cloud": [
       "Cloud Computing & Big Data Engineering", "Data Engineering & Cloud Infrastructure", 
-      "Machine Learning & AI", "DevOps, Cloud Automation & MLOps", "Business Intelligence & Decision Science"
+      "Machine Learning & AI", "DevOps, Cloud Automation & MLOps", "Business Intelligence & Decision Science", "Data Science and Cloud"
     ],
     "Electrical Engineering": [
       "Power Systems & Energy Engineering", "Electronics & Embedded Systems", 
-      "Control Systems & Automation", "Communication & Signal Processing"
+      "Control Systems & Automation", "Communication & Signal Processing", "Electrical Engineering"
     ],
     "Electronics and Communication Engineering": [
       "Communication Systems Engineering", "Embedded Systems Engineering", "Power Systems Engineering", 
       "Signal Processing Engineering", "Telecommunication Engineering", "Wireless Communication Engineering", 
-      "VLSI Design & Embedded Systems"
+      "VLSI Design & Embedded Systems", "Electronics and Communication Engineering"
     ],
     "Environmental Engineering": [
-      "Coastal & Ocean Engineering", "Environmental Technology", 
-      "Forestry & Ecological Engineering", "Geological Engineering"
+      "Coastal & Ocean Engineering", "Environmental Tech", 
+      "Forestry & Ecological Engineering", "Geological Engineering", "Environmental Engineering"
     ],
     "Interdisciplinary Engineering": [
       "Internet of Things (IoT)", "Drone & Unmanned Systems Engineering", 
-      "Augmented Reality / Virtual Reality (AR/VR)", "Robotics Engineering"
+      "Augmented Virtual Reality (AR/VR)", "Robotics Engineering", "Interdisciplinary Engineering"
     ],
     "Material Science & Nanotechnology": [
-      "Metallurgical Engineering", "Composite Materials Engineering", "Nanotechnology Engineering"
+      "Metallurgical Engineering", "Composite Materials Engineering", "Nanotechnology Engineering", "Material Science & Nanotechnology"
     ],
     "Mechanical Engineering": [
       "Computational Fluid Dynamics Engineering", "Computational Mechanics Engineering", 
-      "Mechatronics Engineering", "Marine Engineering"
+      "Mechatronics Engineering", "Marine Engineering", "Mechanical Engineering"
     ],
     "Mining & Mineral Engineering": [
-      "Mine Planning & Design", "Rock Mechanics & Ground Control", "Mineral Processing & Extractive Metallurgy"
+      "Mine Planning & Design", "Rock Mechanics & Ground Control", "Mineral Processing & Extractive Metallurgy", "Mining & Mineral Engineering"
     ],
     "Nuclear Engineering": [
       "Nuclear Reactor Design & Engineering", "Nuclear Fuel Cycle & Waste Management", 
       "Nuclear Materials & Structural Integrity", "Plasma Physics & Fusion Energy", 
-      "Nuclear Policy & Non-Proliferation"
+      "Nuclear Policy & Non-Proliferation", "Nuclear Engineering"
     ],
     "Petroleum Engineering": [
       "Oil & Gas Engineering", "Reservoir Engineering", "Drilling & Well Engineering", 
-      "Production & Refining Engineering"
+      "Production & Refining Engineering", "Petroleum Engineering"
     ],
     "Systems and Control Engineering": [
-      "Manufacturing Engineering", "Industrial Engineering", "Instrumentation & Control Engineering"
+      "Manufacturing Engineering", "Industrial Engineering", "Instrumentation & Control Engineering", "Systems and Control Engineering"
     ],
     "Textile Engineering": [
       "Textile Materials Science", "Textile Manufacturing & Production", "Textile Chemistry", 
-      "Smart Textiles", "Textile Machinery & Automation", "Sustainable Textiles"
+      "Smart Textiles", "Textile Machinery & Automation", "Sustainable Textiles", "Textile Engineering"
     ],
     "Urban and Regional Planning Engineering": [
-      "Transportation Engineering", "Geospatial & GIS Engineering"
+      "Transportation Engineering", "Geospatial & GIS Engineering", "Urban and Regional Planning Engineering"
     ]
   }
 };
@@ -272,6 +296,26 @@ export function normalizeMilestoneStatus(
   const lower = s.toLowerCase();
   const match = allowed.find((opt) => opt.toLowerCase() === lower);
   return match ?? s;
+}
+
+/** Every project / exam / certification with a title must have a valid status label. */
+export function getMilestoneStatusValidationError(prof: Profile): string | null {
+  for (const p of prof.projects) {
+    if (!p.name?.trim()) continue;
+    const st = normalizeMilestoneStatus(p.status, PROJECT_STATUS_OPTIONS);
+    if (!PROJECT_STATUS_OPTIONS.includes(st)) return 'Choose a status for each project';
+  }
+  for (const e of prof.exams) {
+    if (!e.name?.trim()) continue;
+    const st = normalizeMilestoneStatus(e.status, EXAM_STATUS_OPTIONS);
+    if (!EXAM_STATUS_OPTIONS.includes(st)) return 'Choose a status for each exam';
+  }
+  for (const c of prof.certifications) {
+    if (!c.name?.trim()) continue;
+    const st = normalizeMilestoneStatus(c.status, CERTIFICATION_STATUS_OPTIONS);
+    if (!CERTIFICATION_STATUS_OPTIONS.includes(st)) return 'Choose a status for each certification';
+  }
+  return null;
 }
 
 export const REFLECTION_PROMPTS = [

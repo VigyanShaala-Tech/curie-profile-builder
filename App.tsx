@@ -10,6 +10,7 @@ import {
   EXAM_STATUS_OPTIONS,
   CERTIFICATION_STATUS_OPTIONS,
   normalizeMilestoneStatus,
+  getMilestoneStatusValidationError,
 } from './constants';
 import { useProfile } from './context/ProfileContext';
 import IdentityForm from './components/IdentityForm';
@@ -352,9 +353,9 @@ const App: React.FC = () => {
     }
     if (section === Section.MILESTONES) {
       return (
-        prof.projects.length > 0 ||
-        prof.exams.length > 0 ||
-        prof.certifications.length > 0
+        prof.projects.some((p) => p.name.trim().length > 0) ||
+        prof.exams.some((e) => e.name.trim().length > 0) ||
+        prof.certifications.some((c) => c.name.trim().length > 0)
       );
     }
     if (section === Section.REFLECTIONS) {
@@ -489,27 +490,17 @@ const App: React.FC = () => {
         missing["expertise"] = `Please answer at least ${MIN_EXPERTISE_QUESTIONS} questions`;
       }
     } else if (section === Section.MILESTONES) {
-      const hasMilestones = 
-        prof.projects.length > 0 || 
-        prof.exams.length > 0 ||
-        prof.certifications.length > 0;
+      const hasMilestones =
+        prof.projects.some((p) => p.name.trim().length > 0) ||
+        prof.exams.some((e) => e.name.trim().length > 0) ||
+        prof.certifications.some((c) => c.name.trim().length > 0);
 
       if (!hasMilestones) {
         missing["milestones"] = "This field is required";
+      } else {
+        const statusErr = getMilestoneStatusValidationError(prof);
+        if (statusErr) missing["milestones"] = statusErr;
       }
-
-      prof.projects.forEach((project, index) => {
-        if (!project.name.trim()) missing[`projectName_${index}`] = "This field is required";
-        if (project.name.trim() && !project.status) missing[`projectStatus_${index}`] = "This field is required";
-      });
-      prof.exams.forEach((exam, index) => {
-        if (!exam.name.trim()) missing[`examName_${index}`] = "This field is required";
-        if (exam.name.trim() && !exam.status) missing[`examStatus_${index}`] = "This field is required";
-      });
-      prof.certifications.forEach((cert, index) => {
-        if (!cert.name.trim()) missing[`certificationName_${index}`] = "This field is required";
-        if (cert.name.trim() && !cert.status) missing[`certificationStatus_${index}`] = "This field is required";
-      });
     } else if (section === Section.REFLECTIONS) {
       // Reflections are intentionally flexible and non-mandatory.
     }
@@ -553,29 +544,17 @@ const App: React.FC = () => {
         missing["expertise"] = `Please answer at least ${MIN_EXPERTISE_QUESTIONS} questions`;
       }
     } else if (section === Section.MILESTONES) {
-      const hasMilestones = 
-        prof.projects.length > 0 || 
-        prof.exams.length > 0 ||
-        prof.certifications.length > 0;
+      const hasMilestones =
+        prof.projects.some((p) => p.name.trim().length > 0) ||
+        prof.exams.some((e) => e.name.trim().length > 0) ||
+        prof.certifications.some((c) => c.name.trim().length > 0);
 
       if (!hasMilestones) {
-        missing["Projects"] = "Projects are required";
-        missing["Exams"] = "Exams are required";
-        missing["Certifications"] = "Certifications are required";
+        missing["milestones"] = "Add at least one project, certification, or exam (title)";
+      } else {
+        const statusErr = getMilestoneStatusValidationError(prof);
+        if (statusErr) missing["milestones"] = statusErr;
       }
-
-      prof.projects.forEach((project, index) => {
-        if (!project.name.trim()) missing[`projectName_${index}`] = `Project Title is required`;
-        if (project.name.trim() && !project.status) missing[`projectStatus_${index}`] = `Status for ${project.name} is required`;
-      });
-      prof.exams.forEach((exam, index) => {
-        if (!exam.name.trim()) missing[`examName_${index}`] = `Exam Name is required`;
-        if (exam.name.trim() && !exam.status) missing[`examStatus_${index}`] = `Status for ${exam.name} is required`;
-      });
-      prof.certifications.forEach((cert, index) => {
-        if (!cert.name.trim()) missing[`certificationName_${index}`] = `Certification Name is required`;
-        if (cert.name.trim() && !cert.status) missing[`certificationStatus_${index}`] = `Status for ${cert.name} is required`;
-      });
     } else if (section === Section.REFLECTIONS) {
       // Reflections are intentionally flexible and non-mandatory.
     }
@@ -609,10 +588,10 @@ const App: React.FC = () => {
       profile.professionalSkills.length > 0 ? 'filled' : '',
       profile.interests.length > 0 ? 'filled' : '',
 
-      // Milestones & Projects (3)
-      profile.projects.length > 0 ? 'filled' : '',
-      profile.exams.length > 0 ? 'filled' : '',
-      profile.certifications.length > 0 ? 'filled' : '',
+      // Milestones: any titled entry counts for its bucket
+      profile.projects.some((p) => p.name.trim()) ? 'filled' : '',
+      profile.exams.some((e) => e.name.trim()) ? 'filled' : '',
+      profile.certifications.some((c) => c.name.trim()) ? 'filled' : '',
 
       // Reflections (7)
       ...Object.values(profile.reflections)
@@ -661,9 +640,9 @@ const App: React.FC = () => {
     if (profile.interests.length > 0) filled += 1;
 
     // Milestones
-    if (profile.projects.length > 0) filled += 1;
-    if (profile.exams.length > 0) filled += 1;
-    if (profile.certifications.length > 0) filled += 1;
+    if (profile.projects.some((p) => p.name.trim())) filled += 1;
+    if (profile.exams.some((e) => e.name.trim())) filled += 1;
+    if (profile.certifications.some((c) => c.name.trim())) filled += 1;
 
     // Reflections
     if (profile.reflections.impactPurpose.trim()) filled += 1;
@@ -705,9 +684,9 @@ const App: React.FC = () => {
     }
     if (section === Section.MILESTONES) {
       return (
-        prof.projects.length > 0 ||
-        prof.exams.length > 0 ||
-        prof.certifications.length > 0
+        prof.projects.some((p) => p.name.trim().length > 0) ||
+        prof.exams.some((e) => e.name.trim().length > 0) ||
+        prof.certifications.some((c) => c.name.trim().length > 0)
       );
     }
     if (section === Section.REFLECTIONS) {
@@ -738,12 +717,11 @@ const App: React.FC = () => {
       return getExpertiseAnsweredCount(prof) >= MIN_EXPERTISE_QUESTIONS;
     }
     if (section === Section.MILESTONES) {
-      const filled = [
-        prof.projects.length > 0,
-        prof.exams.length > 0,
-        prof.certifications.length > 0
-      ].filter(Boolean).length;
-      return filled >= 1;
+      return (
+        prof.projects.some((p) => p.name.trim().length > 0) ||
+        prof.exams.some((e) => e.name.trim().length > 0) ||
+        prof.certifications.some((c) => c.name.trim().length > 0)
+      );
     }
     if (section === Section.REFLECTIONS) {
       const filled = (Object.values(prof.reflections) as string[]).filter(v => !!v && v.trim().length > 0).length;
@@ -1272,7 +1250,7 @@ const App: React.FC = () => {
                     <div>
                       <p className="text-xs font-bold text-red-800 mb-1 uppercase tracking-wider">Please fix the following</p>
                       <ul className="text-xs text-red-600 font-bold leading-relaxed list-disc list-inside mt-1 space-y-1">
-                        {Object.values(validationErrors.fields).map((error, i) => (
+                        {[...new Set(Object.values(validationErrors.fields))].map((error, i) => (
                           <li key={i}>{error}</li>
                         ))}
                       </ul>

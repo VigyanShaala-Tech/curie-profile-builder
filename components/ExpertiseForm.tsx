@@ -1,5 +1,7 @@
 
-import React, { useEffect, useMemo, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useRegisterUiBack } from '../hooks/useRegisterUiBack';
+import { pushAppHistoryState } from '../utils/browserBack';
 import { AnimatePresence } from 'motion/react';
 import { Profile } from '../types';
 import { EXPERTISE_TOTAL_PROMPTS, MIN_EXPERTISE_QUESTIONS, getExpertiseAnsweredCount } from '../constants';
@@ -261,15 +263,20 @@ const ExpertiseForm: React.FC<Props> = ({
       }
     }
     setAttemptedNext(false);
-    if (step < TF_STEPS - 1) setStep(step + 1);
-    else onCompleteSection?.();
+    if (step < TF_STEPS - 1) {
+      const next = step + 1;
+      setStep(next);
+      pushAppHistoryState({ section: 'skills', step: next });
+    } else onCompleteSection?.();
   };
 
-  const goBackTf = () => {
+  const goBackTf = useCallback(() => {
     setAttemptedNext(false);
     if (step > 0) setStep(step - 1);
     else onBackFromFirst?.();
-  };
+  }, [step, onBackFromFirst]);
+
+  useRegisterUiBack(goBackTf, [goBackTf]);
 
   if (typeform && !readOnly) {
     const cfg = stepConfig[step];

@@ -1,5 +1,5 @@
 
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { Section, Profile, INITIAL_PROFILE } from './types';
 import {
   REFLECTION_PROMPTS,
@@ -26,6 +26,7 @@ import { Auth } from './components/Auth';
 import JourneyHorizontalTracker from './components/JourneyHorizontalTracker';
 import { motion, AnimatePresence } from 'motion/react';
 import confetti from 'canvas-confetti';
+import { initBrowserBackListener, pushAppHistoryState, replaceAppHistoryState, setUiBackHandler } from './utils/browserBack';
 
 const VIGYAN_SHAALA_LOGO = '/images/log.png';
 const STORAGE_KEY = 'vs_reflection_profile';
@@ -321,6 +322,7 @@ const App: React.FC = () => {
           block: 'start' 
         });
       }, 100);
+      pushAppHistoryState({ section: nextSection, view: 'question', step: 0 });
     } else {
       setEditingSection(null);
     }
@@ -787,6 +789,7 @@ const App: React.FC = () => {
       requestAnimationFrame(() => {
         sectionRefs.current[Section.REVIEW]?.scrollIntoView({ behavior: 'smooth', block: 'start' });
       });
+      pushAppHistoryState({ section: Section.REVIEW, view: 'review' });
       return;
     }
 
@@ -802,7 +805,33 @@ const App: React.FC = () => {
     setResumeSectionEdit(null);
     setEditingSection(next);
     setValidationErrors(null);
+    pushAppHistoryState({ section: next, view: 'question', step: 0 });
   };
+
+  const handleReviewUiBack = useCallback(() => {
+    setEditingSection(Section.REFLECTIONS);
+    setResumeSectionEdit(null);
+    setValidationErrors(null);
+  }, []);
+
+  const isOnSectionSummary =
+    !!editingSection &&
+    editingSection !== Section.REVIEW &&
+    savedSections.includes(editingSection) &&
+    isSectionFilled(editingSection, profile) &&
+    resumeSectionEdit !== editingSection;
+
+  useEffect(() => {
+    if (!isStarted) return;
+    initBrowserBackListener(true, () => replaceAppHistoryState());
+    replaceAppHistoryState({ section: editingSection ?? Section.BASIC });
+  }, [isStarted]);
+
+  useEffect(() => {
+    if (!isStarted || !isOnSectionSummary || !editingSection) return;
+    setUiBackHandler(() => setResumeSectionEdit(editingSection));
+  }, [isStarted, isOnSectionSummary, editingSection]);
+
   const identityComplete = Object.keys(getMandatoryMissingFields(Section.BASIC)).length === 0;
   const academicsComplete = Object.keys(getMandatoryMissingFields(Section.ACADEMIC)).length === 0;
   const expertiseComplete = Object.keys(getMandatoryMissingFields(Section.SKILLS)).length === 0;
@@ -1097,6 +1126,7 @@ const App: React.FC = () => {
                     completeness={completeness}
                     isReturningUser={isReturningSession}
                     updateProfile={updateProfile}
+                    onReviewUiBack={handleReviewUiBack}
                     setCurrentSection={(s) => {
                       setResumeSectionEdit(null);
                       setEditingSection(s);
@@ -1109,7 +1139,10 @@ const App: React.FC = () => {
                     <SectionSummary
                       section={section}
                       profile={profile}
-                      onEdit={() => setResumeSectionEdit(section)}
+                      onEdit={() => {
+                        setResumeSectionEdit(section);
+                        pushAppHistoryState({ section, view: 'question' });
+                      }}
                     />
                     <div className="mt-6 flex justify-end">
                       <button
@@ -1129,6 +1162,7 @@ const App: React.FC = () => {
                                 block: 'start',
                               });
                             });
+                            pushAppHistoryState({ section: Section.REVIEW, view: 'review' });
                             return;
                           }
                           goToNextJourneySection(section);
@@ -1233,6 +1267,14 @@ const App: React.FC = () => {
                     onSelectStep={(sec) => {
                       setResumeSectionEdit(null);
                       setEditingSection(sec);
+                      const showSummary =
+                        savedSections.includes(sec) &&
+                        isSectionFilled(sec, profile);
+                      pushAppHistoryState({
+                        section: sec,
+                        view: showSummary ? 'summary' : 'question',
+                        step: 0,
+                      });
                       sectionRefs.current[sec]?.scrollIntoView({ behavior: 'smooth', block: 'start' });
                     }}
                   />

@@ -1,5 +1,7 @@
 
-import React, { useState, useMemo, useRef, useCallback } from 'react';
+import React, { useState, useMemo, useRef, useCallback, useEffect } from 'react';
+import { useRegisterUiBack } from '../hooks/useRegisterUiBack';
+import { pushAppHistoryState } from '../utils/browserBack';
 import { Pencil } from 'lucide-react';
 import { Profile, Section } from '../types';
 import { REFLECTION_PROMPTS, getMilestoneStatusValidationError } from '../constants';
@@ -13,6 +15,7 @@ interface Props {
   isReturningUser?: boolean;
   setCurrentSection: (s: Section) => void;
   updateProfile: (updates: Partial<Profile>) => void;
+  onReviewUiBack?: () => void;
 }
 
 const VIGYAN_SHAALA_LOGO = '/images/log.png';
@@ -25,6 +28,7 @@ const ReviewPage: React.FC<Props> = ({
   isReturningUser = false,
   setCurrentSection,
   updateProfile,
+  onReviewUiBack,
 }) => {
   const isOutOfSync = useMemo(() => {
     if (!profile.lastSyncedAt || !profile.lastUpdatedAt) return true;
@@ -59,6 +63,36 @@ const ReviewPage: React.FC<Props> = ({
       setPendingSection(null);
     }
   };
+
+  const reviewUiBack = useCallback(() => {
+    if (showPreSyncModal) {
+      setShowPreSyncModal(false);
+      return;
+    }
+    if (showSyncSuccessModal) {
+      setShowSyncSuccessModal(false);
+      return;
+    }
+    if (pendingSection) {
+      setPendingSection(null);
+      return;
+    }
+    onReviewUiBack?.();
+  }, [showPreSyncModal, showSyncSuccessModal, pendingSection, onReviewUiBack]);
+
+  useRegisterUiBack(reviewUiBack, [reviewUiBack]);
+
+  useEffect(() => {
+    if (showPreSyncModal) pushAppHistoryState({ view: 'review', modal: 'sync' });
+  }, [showPreSyncModal]);
+
+  useEffect(() => {
+    if (showSyncSuccessModal) pushAppHistoryState({ view: 'review', modal: 'sync-success' });
+  }, [showSyncSuccessModal]);
+
+  useEffect(() => {
+    if (pendingSection) pushAppHistoryState({ view: 'review', modal: 'edit-confirm' });
+  }, [pendingSection]);
 
   const formatIST = (dateStr?: string) => {
     if (!dateStr) return null;

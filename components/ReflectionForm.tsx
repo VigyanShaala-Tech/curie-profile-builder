@@ -1,5 +1,7 @@
 
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
+import { useRegisterUiBack } from '../hooks/useRegisterUiBack';
+import { pushAppHistoryState } from '../utils/browserBack';
 import { AnimatePresence } from 'motion/react';
 import { Brain, ChevronDown, ChevronUp } from 'lucide-react';
 import { Profile } from '../types';
@@ -43,10 +45,23 @@ const ReflectionForm: React.FC<Props> = ({
     return () => cancelAnimationFrame(t);
   }, [currentIndex, typeform, readOnly]);
 
+  const handlePrev = useCallback(() => {
+    if (currentIndex > 0) {
+      setCurrentIndex(currentIndex - 1);
+      setShowExample(false);
+    } else {
+      onBackFromFirst?.();
+    }
+  }, [currentIndex, onBackFromFirst]);
+
+  useRegisterUiBack(handlePrev, [handlePrev]);
+
   const handleNext = () => {
     if (currentIndex < REFLECTION_PROMPTS.length - 1) {
-      setCurrentIndex(currentIndex + 1);
+      const next = currentIndex + 1;
+      setCurrentIndex(next);
       setShowExample(false);
+      pushAppHistoryState({ section: 'reflections', step: next });
     } else if (typeform) {
       const answered = countReflectionAnswers(profile.reflections);
       if (answered < MIN_REFLECTION_ANSWERS) {
@@ -55,15 +70,6 @@ const ReflectionForm: React.FC<Props> = ({
       }
       setMinAnswersGate(false);
       onCompleteSection?.();
-    }
-  };
-
-  const handlePrev = () => {
-    if (currentIndex > 0) {
-      setCurrentIndex(currentIndex - 1);
-      setShowExample(false);
-    } else {
-      onBackFromFirst?.();
     }
   };
 

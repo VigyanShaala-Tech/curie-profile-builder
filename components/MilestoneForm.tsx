@@ -1,5 +1,7 @@
 
 import React, { useState, useRef, useEffect, useMemo, useCallback } from 'react';
+import { useRegisterUiBack } from '../hooks/useRegisterUiBack';
+import { pushAppHistoryState } from '../utils/browserBack';
 import { AnimatePresence } from 'motion/react';
 import { Pencil, FolderGit2, Award, BookOpen, Trash2 } from 'lucide-react';
 import { TypeformSlide, TypeformNav, TypeformToggleGroup, typeformInputClass, typeformLabelClass, formFieldErrorClass } from './TypeformSlide';
@@ -267,6 +269,15 @@ const MilestoneForm: React.FC<Props> = ({
     }
   }, [savedMilestoneCount, milestoneStep0Kind]);
 
+  const goBackMs = useCallback(() => {
+    if (!typeform || readOnly) return;
+    setAttemptedNext(false);
+    if (msStep > 0) setMsStep(msStep - 1);
+    else onBackFromFirst?.();
+  }, [typeform, readOnly, msStep, onBackFromFirst]);
+
+  useRegisterUiBack(goBackMs, [goBackMs]);
+
   if (typeform && !readOnly) {
     const getDraftEntry = (): UnifiedEntry | null => {
       if (!draftPtr) return null;
@@ -287,12 +298,6 @@ const MilestoneForm: React.FC<Props> = ({
       if (draftPtr.type === 'project') updateProject(draftPtr.index, updates);
       else if (draftPtr.type === 'certification') updateCertification(draftPtr.index, updates);
       else updateExam(draftPtr.index, updates);
-    };
-
-    const goBackMs = () => {
-      setAttemptedNext(false);
-      if (msStep > 0) setMsStep(msStep - 1);
-      else onBackFromFirst?.();
     };
 
     const entry = getDraftEntry();
@@ -319,6 +324,18 @@ const MilestoneForm: React.FC<Props> = ({
       }
     }
 
+    const advanceFromStatusSelect = (statusValue: string) => {
+      updateDraft({ status: statusValue });
+      setAttemptedNext(false);
+      const st = normalizeMilestoneStatus(statusValue, statusOptions);
+      if (!st.trim() || !statusOptions.includes(st)) {
+        setAttemptedNext(true);
+        return;
+      }
+      setMsStep(3);
+      pushAppHistoryState({ section: 'milestones', step: 3 });
+    };
+
     const goNextMs = () => {
       if (msStep === 1) {
         setAttemptedNext(true);
@@ -326,18 +343,13 @@ const MilestoneForm: React.FC<Props> = ({
         if (!e || !e.data.name.trim()) return;
         setAttemptedNext(false);
         setMsStep(2);
+        pushAppHistoryState({ section: 'milestones', step: 2 });
         return;
       }
       if (msStep === 2) {
         const e = getDraftEntry();
         if (!e) return;
-        const st = normalizeMilestoneStatus((e.data as MilestoneDetail).status, statusOptions);
-        if (!st.trim() || !statusOptions.includes(st)) {
-          setAttemptedNext(true);
-          return;
-        }
-        setAttemptedNext(false);
-        setMsStep(3);
+        advanceFromStatusSelect((e.data as MilestoneDetail).status);
         return;
       }
       if (msStep === 3) {
@@ -345,6 +357,7 @@ const MilestoneForm: React.FC<Props> = ({
         if (e) updateDraft({ isSaved: true });
         setAttemptedNext(false);
         setMsStep(0);
+        pushAppHistoryState({ section: 'milestones', step: 0 });
         return;
       }
     };
@@ -579,10 +592,7 @@ const MilestoneForm: React.FC<Props> = ({
               </label>
               <TypeformToggleGroup
                 value={normalizeMilestoneStatus((entry.data as MilestoneDetail).status, statusOptions)}
-                onSelect={(value) => {
-                  updateDraft({ status: value });
-                  setAttemptedNext(false);
-                }}
+                onSelect={(value) => advanceFromStatusSelect(value)}
                 options={statusOptions.map((opt) => ({ label: opt, value: opt }))}
               />
               {attemptedNext && !typeformStatusComplete && (

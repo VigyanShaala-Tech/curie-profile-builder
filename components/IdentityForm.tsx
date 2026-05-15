@@ -1,5 +1,7 @@
 
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
+import { useRegisterUiBack } from '../hooks/useRegisterUiBack';
+import { pushAppHistoryState } from '../utils/browserBack';
 import { AnimatePresence } from 'motion/react';
 import { Profile } from '../types';
 import { TypeformSlide, TypeformNav, TypeformToggleGroup, typeformInputClass, typeformLabelClass, formFieldErrorClass } from './TypeformSlide';
@@ -72,18 +74,23 @@ const IdentityForm: React.FC<Props> = ({
     return true;
   };
 
-  const goNext = () => {
-    if (!canAdvance(step)) return;
-    setAttemptedNext(false);
-    if (step < IDENTITY_TF_STEPS - 1) setStep(step + 1);
-    else onCompleteSection?.();
-  };
-
-  const goBack = () => {
+  const goBack = useCallback(() => {
     setAttemptedNext(false);
     if (step > 0) setStep(step - 1);
     else onBackFromFirst?.();
-  };
+  }, [step, onBackFromFirst]);
+
+  const goNext = useCallback(() => {
+    if (!canAdvance(step)) return;
+    setAttemptedNext(false);
+    if (step < IDENTITY_TF_STEPS - 1) {
+      const next = step + 1;
+      setStep(next);
+      pushAppHistoryState({ section: 'basic', step: next });
+    } else onCompleteSection?.();
+  }, [step, onCompleteSection, firstName, lastName, isEmailValid, profile.location]);
+
+  useRegisterUiBack(goBack, [goBack]);
 
   const onKeyDown = (e: React.KeyboardEvent) => {
     if (e.key === 'Enter') {
@@ -156,7 +163,12 @@ const IdentityForm: React.FC<Props> = ({
                 value={profile.gender}
                 onSelect={(value) => {
                   updateProfile({ gender: value });
-                  if (!typeformResumeEdit) setTimeout(() => setStep(3), 120);
+                  if (!typeformResumeEdit) {
+                    setTimeout(() => {
+                      setStep(3);
+                      pushAppHistoryState({ section: 'basic', step: 3 });
+                    }, 120);
+                  }
                 }}
                 options={[
                   { label: 'Male', value: 'Male' },

@@ -1,5 +1,7 @@
 
-import React, { useEffect, useMemo, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useRegisterUiBack } from '../hooks/useRegisterUiBack';
+import { pushAppHistoryState } from '../utils/browserBack';
 import { AnimatePresence } from 'motion/react';
 import { Profile } from '../types';
 import { DEGREE_OPTIONS, STEM_HIERARCHY } from '../constants';
@@ -142,18 +144,23 @@ const AcademicForm: React.FC<Props> = ({
     }
   };
 
-  const goNext = () => {
-    if (!validateCurrent()) return;
-    setAttemptedNext(false);
-    if (step < ACADEMIC_TF_STEPS - 1) setStep(step + 1);
-    else onCompleteSection?.();
-  };
-
-  const goBack = () => {
+  const goBack = useCallback(() => {
     setAttemptedNext(false);
     if (step > 0) setStep(step - 1);
     else onBackFromFirst?.();
-  };
+  }, [step, onBackFromFirst]);
+
+  const goNext = useCallback(() => {
+    if (!validateCurrent()) return;
+    setAttemptedNext(false);
+    if (step < ACADEMIC_TF_STEPS - 1) {
+      const next = step + 1;
+      setStep(next);
+      pushAppHistoryState({ section: 'academic', step: next });
+    } else onCompleteSection?.();
+  }, [step, onCompleteSection, profile]);
+
+  useRegisterUiBack(goBack, [goBack]);
 
   const onKeyDown = (e: React.KeyboardEvent) => {
     if (e.key === 'Enter') {

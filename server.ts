@@ -163,11 +163,6 @@ async function startServer() {
     }
 
     try {
-      const existingSheetUser = await findUserByPhone(normalizedPhone);
-      if (existingSheetUser) {
-        return res.status(400).json({ error: 'Phone number already exists' });
-      }
-
       const hashedPassword = await bcrypt.hash(password, 10);
       const stmt = db.prepare('INSERT INTO users (phone, password) VALUES (?, ?)');
       const info = stmt.run(normalizedPhone, hashedPassword);

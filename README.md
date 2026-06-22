@@ -4,10 +4,9 @@ Please find the standardized column header structure for the **Curie Profile Bui
 
 ## Reference Documents
 
-The following documents should be used as the source of truth while implementing or validating the Curie Profile Builder data structure:
+The following document should be used as the source of truth while implementing or validating the Curie Profile Builder data structure:
 
 * **Frontend Documentation:** [[`App(Frontend) structure documentation.docx`]](https://vigyanshaala-my.sharepoint.com/:w:/p/akshata_satpute/IQDrs_mIAG0PQLSoCpbwWpQZAZlcYqGa_jrhGb9Aeb8VGu8?e=2Q5kEH)
-* **Google Sheet:** [`curie_profile_builder_data`](https://docs.google.com/spreadsheets/d/1mZ0guLHSDuWVydpOVOWGMw9dB7LO-oy63cN-n41PXX8/edit?usp=sharing)
 * **Hierarchical Schema:** Tree representation of the complete profile structure for easier understanding of the nested JSON fields.
 
 ---

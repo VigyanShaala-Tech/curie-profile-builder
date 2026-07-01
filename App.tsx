@@ -154,6 +154,9 @@ const App: React.FC = () => {
           if (saved) {
             setUser(data.user);
             setIsAuthenticated(true);
+            // This is a returning user resuming an existing session on reload;
+            // flag it so the Level 2 (Review) group isn't locked.
+            setIsReturningSession(true);
             try {
               const parsed = JSON.parse(saved);
               handleStart(parsed);
@@ -408,7 +411,11 @@ const App: React.FC = () => {
       }
       
       setVisibleSections(newVisibleSections);
-      setEditingSection(firstEmptySection);
+      // When every section is already filled, firstEmptySection is null. Fall
+      // back to the Review section so a completed profile still renders on
+      // reload instead of showing a blank screen (no section matches a null
+      // editingSection in the render loop).
+      setEditingSection(firstEmptySection ?? Section.REVIEW);
       setCurrentSectionIndex(firstEmptySection ? getJourneyIndex(firstEmptySection) : JOURNEY_STEPS.length - 1);
       
     } else {

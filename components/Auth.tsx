@@ -44,10 +44,18 @@ function buildE164(country: CountryCode, nationalRaw: string): string {
   return `+${dial}${digits}`;
 }
 
-/** National digits only (no country code): 6–15 digits */
+/** National mobile: exactly 10 digits and must not start with 0. */
 function isNationalPhoneOk(nationalRaw: string): boolean {
   const digits = nationalRaw.replace(/\D/g, '');
-  return /^\d{6,15}$/.test(digits);
+  return /^[1-9]\d{9}$/.test(digits);
+}
+
+/** Specific validation message based on why the national number is invalid. */
+function nationalPhoneError(nationalRaw: string): string {
+  const digits = nationalRaw.replace(/\D/g, '');
+  if (digits.startsWith('0')) return 'Mobile number must not start with 0';
+  if (digits.length !== 10) return 'Mobile number must be exactly 10 digits';
+  return 'Enter a valid 10-digit mobile number';
 }
 
 function passwordStrengthOk(pw: string): boolean {
@@ -240,7 +248,7 @@ export const Auth: React.FC<AuthProps> = ({ onLogin }) => {
     setError('');
     clearFieldErrors();
     if (!isNationalPhoneOk(nationalNumber)) {
-      setPhoneError('Enter a valid phone number');
+      setPhoneError(nationalPhoneError(nationalNumber));
       return;
     }
     if (!password.trim()) {
@@ -280,7 +288,7 @@ export const Auth: React.FC<AuthProps> = ({ onLogin }) => {
     setError('');
     clearFieldErrors();
     if (!isNationalPhoneOk(nationalNumber)) {
-      setPhoneError('Enter a valid phone number');
+      setPhoneError(nationalPhoneError(nationalNumber));
       return;
     }
     setLoginStep(1);
@@ -289,7 +297,7 @@ export const Auth: React.FC<AuthProps> = ({ onLogin }) => {
   const requestPasswordReset = async () => {
     clearFieldErrors();
     if (!isNationalPhoneOk(nationalNumber)) {
-      setPhoneError('Enter a valid phone number');
+      setPhoneError(nationalPhoneError(nationalNumber));
       return;
     }
     if (!resetEmail.trim() || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(resetEmail.trim())) {

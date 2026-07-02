@@ -359,6 +359,13 @@ export const Auth: React.FC<AuthProps> = ({ onLogin }) => {
   const newPassBorder = newPasswordError ? 'border-red-500 focus:border-red-500' : 'border-[#2c4869]/25 focus:border-[#f58434]';
 
   const canContinuePhone = isNationalPhoneOk(nationalNumber);
+  const phoneLiveError = (() => {
+    const digits = nationalNumber.replace(/\D/g, '');
+    if (!digits) return '';
+    if (digits.startsWith('0')) return 'Mobile number must not start with 0';
+    if (digits.length > 10) return 'Mobile number must not exceed 10 digits';
+    return '';
+  })();
   const verifyOtpAndContinue = () => {
     const joined = otpCells.join('');
     if (joined.length !== 6) return;
@@ -463,7 +470,7 @@ export const Auth: React.FC<AuthProps> = ({ onLogin }) => {
                         <p className="text-[10px] text-[#2c4869]/50 mt-1 font-medium">
                           {countryIso} +{getCountryCallingCode(countryIso)} · {fullPhoneE164}
                         </p>
-                        {phoneError ? <p className="text-xs text-red-600 font-bold mt-2">{phoneError}</p> : null}
+                        {(phoneError || phoneLiveError) ? <p className="text-xs text-red-600 font-bold mt-2">{phoneError || phoneLiveError}</p> : null}
                       </div>
                     )}
 
